@@ -1,23 +1,36 @@
 package de.lmu.js.interruptionesm
 
-import android.content.BroadcastReceiver
-import android.content.ContentValues
-import android.content.IntentFilter
-import androidx.appcompat.app.AppCompatActivity
+
+import android.Manifest
+import android.app.PendingIntent
+import android.content.*
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.Log
-
-
+import android.view.View
+import androidx.annotation.NonNull
+import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
+import androidx.core.app.ActivityCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.Applications
 import com.aware.Aware
 import com.aware.Aware_Preferences
-import com.aware.Screen
+import com.google.android.gms.location.*
+import com.google.android.gms.tasks.OnFailureListener
+import com.google.android.gms.tasks.OnSuccessListener
+import com.google.android.gms.tasks.Task
 import com.jakewharton.threetenabp.AndroidThreeTen
 import de.lmu.js.interruptionesm.SessionState.Companion.interruptionObj
+
 import org.threeten.bp.Duration
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
+import java.lang.Exception
+import java.util.*
 
 
 //import com.aware.plugin.fitbit.Plugin
@@ -26,30 +39,61 @@ import org.threeten.bp.LocalTime
 
 class MainActivity : AppCompatActivity() {
 
-    var receiver: BroadcastReceiver? = null
+
+    private var activityTransitionList: List<ActivityTransition>? = null
+
+    // Action fired when transitions are triggered.
+        private fun toActivityString(activity: Int): String? {
+        return when (activity) {
+            DetectedActivity.STILL -> "STILL"
+            DetectedActivity.WALKING -> "WALKING"
+            else -> "UNKNOWN"
+        }
+    }
+
+    private fun toTransitionType(transitionType: Int): String? {
+        return when (transitionType) {
+            ActivityTransition.ACTIVITY_TRANSITION_ENTER -> "ENTER"
+            ActivityTransition.ACTIVITY_TRANSITION_EXIT -> "EXIT"
+            else -> "UNKNOWN"
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_main)
+
+
+        // List of activity transitions to track.
+        activityTransitionList = ArrayList()
+
+        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
+        .setActivityType(DetectedActivity.WALKING)
+        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+        .build());
+        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
+        .setActivityType(DetectedActivity.WALKING)
+        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
+        .build());
+        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
+        .setActivityType(DetectedActivity.STILL)
+        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
+        .build());
+        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
+        .setActivityType(DetectedActivity.STILL)
+        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
+        .build());
+
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
         Aware.startPlugins(this)
-       // Aware.startPlugin(this, "com.aware.plugin.google.activity_recognition")
-        configureReceiver()
+        Aware.startPlugin(this, "com.aware.plugin.google.activity_recognition")
 
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
 
         // Register for checking application use
         Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
         Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
-
-        /*Aware.setSetting(applicationContext, Aware_Preferences.LOCATION_GEOFENCE, true)
-        Aware.setSetting(applicationContext, Aware_Preferences.STATUS_LOCATION_NETWORK, true)
-        Aware.setSetting(applicationContext, Aware_Preferences.STATUS_LOCATION_GPS, true)
-        Aware.setSetting(applicationContext, Aware_Preferences.FREQUENCY_LOCATION_GPS, 0)
-        Aware.setSetting(applicationContext, Aware_Preferences.FREQUENCY_LOCATION_NETWORK, 0)
-        Aware.setSetting(applicationContext, Aware_Preferences.MIN_LOCATION_GPS_ACCURACY, 5)*/
 
         Applications.isAccessibilityServiceActive(this)
         Applications.setSensorObserver(object : Applications.AWARESensorObserver {
@@ -66,7 +110,7 @@ class MainActivity : AppCompatActivity() {
             }
 
             override fun onKeyboard(data: ContentValues?) {
-               // Log.d("Application Sensor: Keyboard", "keyboard")
+                // Log.d("Application Sensor: Keyboard", "keyboard")
             }
 
             override fun onTouch(data: ContentValues?) {
@@ -79,9 +123,11 @@ class MainActivity : AppCompatActivity() {
                     if (SessionState.sessionId == 0) {
                         startSession()
                         Log.d("Ö Session", "Started")
-                    }
-                    else {
-                        if(SessionState.interruptState) stopInterruption(); Log.d("Ö Interruption", "Stopped")
+                    } else {
+                        if (SessionState.interruptState) stopInterruption(); Log.d(
+                            "Ö Interruption",
+                            "Stopped"
+                        )
 
                     }
 
@@ -94,7 +140,11 @@ class MainActivity : AppCompatActivity() {
                             Log.d("Ö Interruption", "Started")
                             startInterruption(InterruptType.APPLICATION_SWITCH, Trigger.NONE)
                         } else {
-                            if (Duration.between(interruptionObj.startTime, LocalDate.now()).seconds > 600) {
+                            if (Duration.between(
+                                    interruptionObj.startTime,
+                                    LocalDate.now()
+                                ).seconds > 600
+                            ) {
                                 stopInterruption()
                                 stopSession()
                                 Log.d("Ö Session", "Stopped")
@@ -108,8 +158,9 @@ class MainActivity : AppCompatActivity() {
             }
         })
 
+
 //do we need this or does onforeground trigger on lock as well? test on lock and unlock
-        Screen.setSensorObserver(object: Screen.AWARESensorObserver {
+        /* Screen.setSensorObserver(object: Screen.AWARESensorObserver {
             override fun onScreenLocked() {
                 Log.d("Ö Screen Lock - Interruption", "lock")
                 if (SessionState.sessionId !=0 && !SessionState.interruptState) {
@@ -134,20 +185,17 @@ class MainActivity : AppCompatActivity() {
             }
 
 
-        })
+        })*/
 
         //Passive Sensors
-        if(SessionState.interruptState) {
+        if (SessionState.interruptState) {
             //Movement Modality Logging
 
             //
         }
 
 
-
     }
-
-
 
     private fun startSession() {
         Log.d("Ö ", "In startSess")
@@ -185,16 +233,6 @@ class MainActivity : AppCompatActivity() {
         //Start DB upload or start routine to wait for Wifi then DB upload
     }
 
-    private fun configureReceiver() {
-        val filter = IntentFilter()
-        //filter.addAction(ACTION_AWARE_GOOGLE_ACTIVITY_RECOGNITION)
-        receiver = ActivityListener()
-        registerReceiver(receiver, filter)
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        unregisterReceiver(receiver)
-    }
 }
+
 
