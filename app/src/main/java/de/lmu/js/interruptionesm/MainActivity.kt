@@ -5,11 +5,14 @@ import android.Manifest
 import android.app.PendingIntent
 import android.content.*
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.text.TextUtils
 import android.util.Log
 import android.view.View
+import android.widget.TextView
 import androidx.annotation.NonNull
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
@@ -18,12 +21,14 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.Applications
 import com.aware.Aware
 import com.aware.Aware_Preferences
+import com.google.android.gms.common.internal.safeparcel.SafeParcelableSerializer
 import com.google.android.gms.location.*
 import com.google.android.gms.tasks.OnFailureListener
 import com.google.android.gms.tasks.OnSuccessListener
 import com.google.android.gms.tasks.Task
 import com.jakewharton.threetenabp.AndroidThreeTen
 import de.lmu.js.interruptionesm.SessionState.Companion.interruptionObj
+import kotlinx.android.synthetic.main.activity_main.*
 
 import org.threeten.bp.Duration
 import org.threeten.bp.LocalDate
@@ -37,51 +42,21 @@ import java.util.*
 //import com.aware.plugin.google.activity_recognition.Plugin.ACTION_AWARE_GOOGLE_ACTIVITY_RECOGNITION
 
 
-class MainActivity : AppCompatActivity() {
+class MainActivity : AppCompatActivity(), TransitionListener {
 
-
-    private var activityTransitionList: List<ActivityTransition>? = null
-
-    // Action fired when transitions are triggered.
-        private fun toActivityString(activity: Int): String? {
-        return when (activity) {
-            DetectedActivity.STILL -> "STILL"
-            DetectedActivity.WALKING -> "WALKING"
-            else -> "UNKNOWN"
-        }
-    }
-
-    private fun toTransitionType(transitionType: Int): String? {
-        return when (transitionType) {
-            ActivityTransition.ACTIVITY_TRANSITION_ENTER -> "ENTER"
-            ActivityTransition.ACTIVITY_TRANSITION_EXIT -> "EXIT"
-            else -> "UNKNOWN"
-        }
-    }
+    private lateinit var mTransitionRecognition: TransitionRecognition
+    private lateinit var actReceiver: TransitionRecognitionReceiver
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
 
 
-        // List of activity transitions to track.
-        activityTransitionList = ArrayList()
 
-        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
-        .setActivityType(DetectedActivity.WALKING)
-        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-        .build());
-        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
-        .setActivityType(DetectedActivity.WALKING)
-        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
-        .build());
-        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
-        .setActivityType(DetectedActivity.STILL)
-        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_ENTER)
-        .build());
-        (activityTransitionList as ArrayList<ActivityTransition>).add(ActivityTransition.Builder()
-        .setActivityType(DetectedActivity.STILL)
-        .setActivityTransition(ActivityTransition.ACTIVITY_TRANSITION_EXIT)
-        .build());
+        initTransitionRecognition()
+
+        actReceiver = TransitionRecognitionReceiver(this);
+        registerReceiver(actReceiver, IntentFilter("de.lmu.js.interruptionesm.TRANSITION_RECOGNITION"))
 
         AndroidThreeTen.init(this);
 
@@ -159,34 +134,6 @@ class MainActivity : AppCompatActivity() {
         })
 
 
-//do we need this or does onforeground trigger on lock as well? test on lock and unlock
-        /* Screen.setSensorObserver(object: Screen.AWARESensorObserver {
-            override fun onScreenLocked() {
-                Log.d("Ö Screen Lock - Interruption", "lock")
-                if (SessionState.sessionId !=0 && !SessionState.interruptState) {
-                    Log.d("Ö Screen Lock - Interruption", "Started")
-                    startInterruption(InterruptType.APPLICATION_SWITCH, Trigger.NONE)
-                }
-            }
-
-            override fun onScreenOff() {
-                Log.d("Ö Screen Off - Interruption", "off")
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-            }
-
-            override fun onScreenOn() {
-                Log.d("Ö Screen On - Interruption", "on")
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-            }
-
-            override fun onScreenUnlocked() {
-                Log.d("Screen Unlock", "Notice")
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-            }
-
-
-        })*/
-
         //Passive Sensors
         if (SessionState.interruptState) {
             //Movement Modality Logging
@@ -196,6 +143,35 @@ class MainActivity : AppCompatActivity() {
 
 
     }
+
+    override fun onResume() {
+        super.onResume()
+        //WHATS THE INTENT?
+        registerReceiver(actReceiver, IntentFilter("de.lmu.js.interruptionesm.TRANSITION_RECOGNITION"))
+    }
+
+    override fun onPause() {
+      // mTransitionRecognition.stopTracking()
+       super.onPause()
+    }
+
+    override fun onStop() {
+        super.onStop();
+        unregisterReceiver(actReceiver);
+    }
+
+      fun updateUI(msg: String?) {
+          main_activity_tv.text = main_activity_tv.text.toString() + "\n" + msg;
+      }
+
+    /**
+     * INIT TRANSITION RECOGNITION
+     */
+    fun initTransitionRecognition(){
+        mTransitionRecognition = TransitionRecognition()
+        mTransitionRecognition.startTracking(this)
+    }
+
 
     private fun startSession() {
         Log.d("Ö ", "In startSess")
@@ -232,6 +208,33 @@ class MainActivity : AppCompatActivity() {
 
         //Start DB upload or start routine to wait for Wifi then DB upload
     }
+
+    fun startMockActivity(view: View) {
+        var intent = Intent()//this, TransitionRecognitionReceiver::class.java)
+        // Your broadcast receiver action
+
+        intent.action = "de.lmu.js.interruptionesm.TRANSITION_RECOGNITION"
+        var events: ArrayList<ActivityTransitionEvent> = arrayListOf()
+
+        // You can set desired events with their corresponding state
+
+        var transitionExitEvent = ActivityTransitionEvent(DetectedActivity.STILL, ActivityTransition.ACTIVITY_TRANSITION_EXIT, SystemClock.elapsedRealtimeNanos())
+        events.add(transitionExitEvent)
+        var transitionEvent = ActivityTransitionEvent(DetectedActivity.WALKING, ActivityTransition.ACTIVITY_TRANSITION_ENTER, SystemClock.elapsedRealtimeNanos())
+        events.add(transitionEvent)
+
+        var result = ActivityTransitionResult(events)
+        SafeParcelableSerializer.serializeToIntentExtra(result, intent, "com.google.android.location.internal.EXTRA_ACTIVITY_TRANSITION_RESULT")
+
+        sendBroadcast(intent);
+
+        //LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+    }
+
+    override fun callMainActivity(value: String?) {
+            updateUI(value);
+    }
+
 
 }
 

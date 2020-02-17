@@ -13,7 +13,7 @@ android {
     defaultConfig {
         applicationId "de.lmu.js.interruptionesm"
         minSdkVersion 24
-        targetSdkVersion 28
+        targetSdkVersion 29
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
@@ -54,7 +54,10 @@ dependencies {
 
     implementation 'androidx.annotation:annotation:1.1.0'
     implementation 'com.google.android.material:material:1.0.0'
+
     implementation 'com.google.android.gms:play-services-location:17.0.0'
+
+
     implementation "androidx.localbroadcastmanager:localbroadcastmanager:1.0.0"
 
 }
