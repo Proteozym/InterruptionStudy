@@ -1,40 +1,31 @@
 package de.lmu.js.interruptionesm
 
 
-import android.Manifest
-import android.app.PendingIntent
 import android.content.*
-import android.content.pm.PackageManager
-import android.net.ConnectivityManager
-import android.os.Build
 import android.os.Bundle
 import android.os.SystemClock
-import android.text.TextUtils
 import android.util.Log
 import android.view.View
+import android.widget.Button
+import android.widget.ImageView
 import android.widget.TextView
-import androidx.annotation.NonNull
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.Toolbar
-import androidx.core.app.ActivityCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.Applications
 import com.aware.Aware
 import com.aware.Aware_Preferences
 import com.google.android.gms.common.internal.safeparcel.SafeParcelableSerializer
-import com.google.android.gms.location.*
-import com.google.android.gms.tasks.OnFailureListener
-import com.google.android.gms.tasks.OnSuccessListener
-import com.google.android.gms.tasks.Task
+import com.google.android.gms.location.ActivityTransition
+import com.google.android.gms.location.ActivityTransitionEvent
+import com.google.android.gms.location.ActivityTransitionResult
+import com.google.android.gms.location.DetectedActivity
 import com.jakewharton.threetenabp.AndroidThreeTen
 import de.lmu.js.interruptionesm.SessionState.Companion.interruptionObj
 import kotlinx.android.synthetic.main.activity_main.*
-
 import org.threeten.bp.Duration
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
-import java.lang.Exception
 import java.util.*
 
 
@@ -42,21 +33,43 @@ import java.util.*
 //import com.aware.plugin.google.activity_recognition.Plugin.ACTION_AWARE_GOOGLE_ACTIVITY_RECOGNITION
 
 
-class MainActivity : AppCompatActivity(), TransitionListener {
+class MainActivity : AppCompatActivity() {
 
-    private lateinit var mTransitionRecognition: TransitionRecognition
-    private lateinit var actReceiver: TransitionRecognitionReceiver
+
+    private val TAG = MainActivity::class.java.simpleName
+    var broadcastReceiver: BroadcastReceiver? = null
+
+    private var txtActivity: TextView? = null
+    private  var txtConfidence:TextView? = null
+    private var imgActivity: ImageView? = null
+    private var btnStartTrcking: Button? = null
+    private  var btnStopTracking:android.widget.Button? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        txtActivity = findViewById(R.id.txt_activity)
+        txtConfidence = findViewById(R.id.txt_confidence)
+        imgActivity = findViewById(R.id.img_activity)
+        btnStartTrcking = findViewById(R.id.btn_start_tracking)
+        btnStopTracking = findViewById(R.id.btn_stop_tracking)
+
+        //btn_start_tracking.setOnClickListener(startTracking)
+
+        //btn_stop_tracking.setOnClickListener (stopTracking)
+
+        broadcastReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action == Constants.BROADCAST_DETECTED_ACTIVITY) {
+                    val type = intent.getIntExtra("type", -1)
+                    val confidence = intent.getIntExtra("confidence", 0)
+                    handleUserActivity(type, confidence)
+                }
+            }
+        }
 
 
-        initTransitionRecognition()
-
-        actReceiver = TransitionRecognitionReceiver(this);
-        registerReceiver(actReceiver, IntentFilter("de.lmu.js.interruptionesm.TRANSITION_RECOGNITION"))
 
         AndroidThreeTen.init(this);
 
@@ -81,7 +94,7 @@ class MainActivity : AppCompatActivity(), TransitionListener {
             }
 
             override fun onBackground(data: ContentValues?) {
-
+                Log.d("Ö BG", data!!.getAsString("package_name"))
             }
 
             override fun onKeyboard(data: ContentValues?) {
@@ -122,6 +135,7 @@ class MainActivity : AppCompatActivity(), TransitionListener {
                             ) {
                                 stopInterruption()
                                 stopSession()
+                                stopTracking()
                                 Log.d("Ö Session", "Stopped")
                                 Log.d("Ö Interruption", "Stopped")
                             }
@@ -144,32 +158,88 @@ class MainActivity : AppCompatActivity(), TransitionListener {
 
     }
 
+    private fun handleUserActivity(type: Int, confidence: Int) {
+        var label = getString(R.string.activity_unknown)
+        var icon = R.drawable.ic_still
+        when (type) {
+            DetectedActivity.IN_VEHICLE -> {
+                label = getString(R.string.activity_in_vehicle)
+                icon = R.drawable.ic_driving
+            }
+            DetectedActivity.ON_BICYCLE -> {
+                label = getString(R.string.activity_on_bicycle)
+                icon = R.drawable.ic_on_bicycle
+            }
+            DetectedActivity.ON_FOOT -> {
+                label = getString(R.string.activity_on_foot)
+                icon = R.drawable.ic_walking
+            }
+            DetectedActivity.RUNNING -> {
+                label = getString(R.string.activity_running)
+                icon = R.drawable.ic_running
+            }
+            DetectedActivity.STILL -> {
+                label = getString(R.string.activity_still)
+            }
+            DetectedActivity.TILTING -> {
+                label = getString(R.string.activity_tilting)
+                icon = R.drawable.ic_tilting
+            }
+            DetectedActivity.WALKING -> {
+                label = getString(R.string.activity_walking)
+                icon = R.drawable.ic_walking
+            }
+            DetectedActivity.UNKNOWN -> {
+                label = getString(R.string.activity_unknown)
+            }
+        }
+        Log.e(TAG, "User activity: $label, Confidence: $confidence")
+        if (confidence > Constants.CONFIDENCE) {
+            txtActivity!!.text = label
+            txtConfidence!!.text = "Confidence: $confidence"
+            imgActivity!!.setImageResource(icon)
+        }
+    }
+
     override fun onResume() {
         super.onResume()
-        //WHATS THE INTENT?
-        registerReceiver(actReceiver, IntentFilter("de.lmu.js.interruptionesm.TRANSITION_RECOGNITION"))
+        //LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
     }
 
     override fun onPause() {
-      // mTransitionRecognition.stopTracking()
        super.onPause()
+        Log.d("Ö switch", "Is this switch?")
+        //LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver!!)
     }
 
     override fun onStop() {
         super.onStop();
-        unregisterReceiver(actReceiver);
+
     }
 
-      fun updateUI(msg: String?) {
-          main_activity_tv.text = main_activity_tv.text.toString() + "\n" + msg;
-      }
+    override fun onDestroy() {
+        super.onDestroy()
+        stopInterruption()
+        stopSession()
+        stopTracking()
+        Log.d("Ö Session", "Closed App")
+        Log.d("Ö Interruption", "Closed App")
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver!!)
+    }
 
-    /**
-     * INIT TRANSITION RECOGNITION
-     */
-    fun initTransitionRecognition(){
-        mTransitionRecognition = TransitionRecognition()
-        mTransitionRecognition.startTracking(this)
+    fun startTracking(){
+        Log.d("Ö", "Started Tracking")
+        val intent =
+            Intent(this@MainActivity, BackgroundDetectedActivitiesService::class.java)
+        startService(intent)
+
+    }
+
+    fun stopTracking() {
+        Log.d("Ö", "Stop Tracking")
+        val intent =
+            Intent(this@MainActivity, BackgroundDetectedActivitiesService::class.java)
+        stopService(intent)
     }
 
 
@@ -180,6 +250,8 @@ class MainActivity : AppCompatActivity(), TransitionListener {
         SessionState.sessionId = LocalTime.now().hashCode();
         Log.d("Ö SessionID", SessionState.sessionId.toString())
         SessionState.startTime = LocalDateTime.now();
+        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
+        startTracking();
     }
 
     private fun stopSession() {
@@ -231,9 +303,6 @@ class MainActivity : AppCompatActivity(), TransitionListener {
         //LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
-    override fun callMainActivity(value: String?) {
-            updateUI(value);
-    }
 
 
 }
