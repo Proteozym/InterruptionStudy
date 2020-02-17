@@ -12,19 +12,20 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <activity android:name=".MainActivity">
+        <activity android:name=".MainActivity" android:screenOrientation="portrait" >
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <!-- TRANSITION RECOGNITION - BROADCAST RECEIVER -->
-      <!--  <receiver android:name=".TransitionRecognitionReceiver">
-            <intent-filter>
-                <action android:name="de.lmu.js.interruptionesm.TRANSITION_RECOGNITION" />
-            </intent-filter>
-        </receiver>-->
+        <!-- Service that provides activity recognition data. Setting the android:exported attribute
+         to "false" stops other apps from starting this service, even when using an explicit
+         intent. -->
+        <service
+            android:name=".DetectedActivitiesIntentService"
+            android:exported="false" />
+        <service android:name=".BackgroundDetectedActivitiesService"></service>
     </application>
 
 </manifest>
