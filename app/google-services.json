@@ -1,0 +1,40 @@
+{
+  "project_info": {
+    "project_number": "787779546917",
+    "firebase_url": "https://interruptionstudylmu.firebaseio.com",
+    "project_id": "interruptionstudylmu",
+    "storage_bucket": "interruptionstudylmu.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:787779546917:android:9b667ac5745800b294b4cc",
+        "android_client_info": {
+          "package_name": "de.lmu.js.interruptionesm"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "787779546917-cvoggdn7c6bb4efa7l7kfj0qujjppfrq.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB0VCFupH1Uriu0o6MgCaaSbV-pslEwKlM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "787779546917-cvoggdn7c6bb4efa7l7kfj0qujjppfrq.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

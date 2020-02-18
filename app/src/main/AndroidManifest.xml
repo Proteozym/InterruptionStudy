@@ -27,5 +27,4 @@
             android:exported="false" />
         <service android:name=".BackgroundDetectedActivitiesService"></service>
     </application>
-
 </manifest>

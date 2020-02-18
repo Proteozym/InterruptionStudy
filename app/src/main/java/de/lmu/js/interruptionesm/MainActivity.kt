@@ -240,16 +240,14 @@ class MainActivity : AppCompatActivity() {
 
     fun startTracking(){
         Log.d("Ö", "Started Tracking")
-        val intent =
-            Intent(this@MainActivity, BackgroundDetectedActivitiesService::class.java)
+        val intent = Intent(this@MainActivity, BackgroundDetectedActivitiesService::class.java)
         startService(intent)
 
     }
 
     fun stopTracking() {
         Log.d("Ö", "Stop Tracking")
-        val intent =
-            Intent(this@MainActivity, BackgroundDetectedActivitiesService::class.java)
+        val intent = Intent(this@MainActivity, BackgroundDetectedActivitiesService::class.java)
         stopService(intent)
     }
 
