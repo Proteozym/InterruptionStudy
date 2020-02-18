@@ -69,13 +69,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-
-
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
         Aware.startPlugins(this)
-        Aware.startPlugin(this, "com.aware.plugin.google.activity_recognition")
 
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
 
@@ -164,33 +161,47 @@ class MainActivity : AppCompatActivity() {
         when (type) {
             DetectedActivity.IN_VEHICLE -> {
                 label = getString(R.string.activity_in_vehicle)
+                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.IN_VEHICLE, LocalDateTime.now(), confidence))
                 icon = R.drawable.ic_driving
             }
             DetectedActivity.ON_BICYCLE -> {
                 label = getString(R.string.activity_on_bicycle)
+                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_BICYCLE, LocalDateTime.now(), confidence))
                 icon = R.drawable.ic_on_bicycle
             }
             DetectedActivity.ON_FOOT -> {
+
+                //DO WE NEED THIS?
+
                 label = getString(R.string.activity_on_foot)
+                //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_FOOT, LocalDateTime.now(), confidence))
                 icon = R.drawable.ic_walking
             }
             DetectedActivity.RUNNING -> {
                 label = getString(R.string.activity_running)
+                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.RUNNING, LocalDateTime.now(), confidence))
                 icon = R.drawable.ic_running
             }
             DetectedActivity.STILL -> {
                 label = getString(R.string.activity_still)
+                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.STILL, LocalDateTime.now(), confidence))
             }
             DetectedActivity.TILTING -> {
+
+                //DO WE NEED THIS?
+
                 label = getString(R.string.activity_tilting)
+                //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_BICYCLE, LocalDateTime.now(), confidence))
                 icon = R.drawable.ic_tilting
             }
             DetectedActivity.WALKING -> {
                 label = getString(R.string.activity_walking)
+                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.WALKING, LocalDateTime.now(), confidence))
                 icon = R.drawable.ic_walking
             }
             DetectedActivity.UNKNOWN -> {
                 label = getString(R.string.activity_unknown)
+                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.UNKNOWN, LocalDateTime.now(), confidence))
             }
         }
         Log.e(TAG, "User activity: $label, Confidence: $confidence")

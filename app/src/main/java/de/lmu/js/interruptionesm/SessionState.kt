@@ -24,7 +24,7 @@ class SessionState : Application() {
         var interruptState: Boolean = false;
         lateinit var interruptionObj: InterruptionObject;
 
-        var mvmntModality: Movement_Mod = Movement_Mod.NONE;
+        var mvmntModality = mutableListOf<Movement_Object>()
     }
 
 }
