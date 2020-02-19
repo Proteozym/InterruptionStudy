@@ -278,7 +278,6 @@ class MainActivity : AppCompatActivity() {
         Log.d("Ö Int Time Start", interruptionObj.startTime.toString())
         //Session Context
         //SessionState.mvmntModality = MAYBE CALL
-
     }
 
     private fun stopInterruption() {
