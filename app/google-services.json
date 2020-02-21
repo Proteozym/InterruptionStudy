@@ -1,34 +1,50 @@
 {
   "project_info": {
-    "project_number": "787779546917",
-    "firebase_url": "https://interruptionstudylmu.firebaseio.com",
-    "project_id": "interruptionstudylmu",
-    "storage_bucket": "interruptionstudylmu.appspot.com"
+    "project_number": "635614013293",
+    "firebase_url": "https://interruption-esm-lmu.firebaseio.com",
+    "project_id": "interruption-esm-lmu",
+    "storage_bucket": "interruption-esm-lmu.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:787779546917:android:9b667ac5745800b294b4cc",
+        "mobilesdk_app_id": "1:635614013293:android:9095e24fb06ec919cf9c64",
         "android_client_info": {
           "package_name": "de.lmu.js.interruptionesm"
         }
       },
       "oauth_client": [
         {
-          "client_id": "787779546917-cvoggdn7c6bb4efa7l7kfj0qujjppfrq.apps.googleusercontent.com",
+          "client_id": "635614013293-gltvu4r1044b1trk0i341nv1vedohk0k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "de.lmu.js.interruptionesm",
+            "certificate_hash": "3e2b8258be4a30178cbf9ae7aa00d52477fdad74"
+          }
+        },
+        {
+          "client_id": "635614013293-jqdcjkjdr7i0c8t7l5u1e96issr0bhci.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "de.lmu.js.interruptionesm",
+            "certificate_hash": "622b9a3c87a1ffe81dc85f7966e9747c62820368"
+          }
+        },
+        {
+          "client_id": "635614013293-j1gam01a8aqkgbqjbp1peo43te1233r4.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyB0VCFupH1Uriu0o6MgCaaSbV-pslEwKlM"
+          "current_key": "AIzaSyAUf_G7jkaN_JH1wK7wPA4cJpkRk3r9BZ4"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "787779546917-cvoggdn7c6bb4efa7l7kfj0qujjppfrq.apps.googleusercontent.com",
+              "client_id": "635614013293-j1gam01a8aqkgbqjbp1peo43te1233r4.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

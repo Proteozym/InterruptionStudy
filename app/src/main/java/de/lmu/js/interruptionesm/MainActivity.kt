@@ -4,6 +4,7 @@ package de.lmu.js.interruptionesm
 import android.content.*
 import android.os.Bundle
 import android.os.SystemClock
+import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -38,6 +39,8 @@ class MainActivity : AppCompatActivity() {
 
     private val TAG = MainActivity::class.java.simpleName
     var broadcastReceiver: BroadcastReceiver? = null
+
+    var userKey: String = "testUSR"//Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
 
     private var txtActivity: TextView? = null
     private  var txtConfidence:TextView? = null
@@ -74,7 +77,7 @@ class MainActivity : AppCompatActivity() {
         Aware.startAWARE(this)
         Aware.startPlugins(this)
 
-        Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
+        Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, true)
 
         // Register for checking application use
         Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
@@ -261,6 +264,7 @@ class MainActivity : AppCompatActivity() {
         SessionState.startTime = LocalDateTime.now();
         LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
         startTracking();
+        DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
     }
 
     private fun stopSession() {
