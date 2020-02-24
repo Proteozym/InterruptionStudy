@@ -2,6 +2,7 @@ package de.lmu.js.interruptionesm
 
 import android.app.Application
 import android.content.Context
+import com.google.android.gms.location.DetectedActivity
 import java.time.LocalDate
 
 class SessionState : Application() {
@@ -10,7 +11,6 @@ class SessionState : Application() {
         super.onCreate()
         SessionState.appContext = applicationContext
 
-
     }
 
     companion object {
@@ -18,13 +18,11 @@ class SessionState : Application() {
         lateinit  var appContext: Context;
 
         var sessionId: Int = 0
-        lateinit var startTime: org.threeten.bp.LocalDateTime;
-        lateinit var endTime: org.threeten.bp.LocalDateTime;
-
         var interruptState: Boolean = false;
-        lateinit var interruptionObj: InterruptionObject;
+        lateinit var interruptTmstmp: org.threeten.bp.LocalDateTime
+        var mvmntModalityRecord: MutableList<MovementRecord> = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
 
-        var mvmntModality = mutableListOf<Movement_Object>()
     }
 
 }
+

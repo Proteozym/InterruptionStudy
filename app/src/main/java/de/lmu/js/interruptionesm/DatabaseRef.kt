@@ -3,20 +3,18 @@ package de.lmu.js.interruptionesm
 import android.app.Activity
 import android.app.Application
 import android.content.Context
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.firestore.CollectionReference
+import com.google.firebase.firestore.FirebaseFirestore
 
-class DatabaseRef: Application() {
 
-    companion object {
-        var dbInstance: FirebaseDatabase = FirebaseDatabase.getInstance()
-        var dbRef: DatabaseReference = dbInstance.getReference()
+object DatabaseRef {
 
-        fun pushDB(type: eventType, value: eventValue, key: String) {
-            dbRef.child("UserEvent").child(key).setValue(UserEvent(type, value))
-        }
+    private val dbInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+    private val currentUserRef: CollectionReference by lazy { dbInstance.collection("UserEvent") }
+
+    fun pushDB(type: eventType, value: eventValue, key: String, addProp: Map<String, String> = mapOf()) {
+
+        currentUserRef.document().set(UserEvent(type, value, key, addProp))
     }
-
-
 
 }

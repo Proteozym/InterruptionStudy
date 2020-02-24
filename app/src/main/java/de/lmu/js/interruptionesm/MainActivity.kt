@@ -7,27 +7,34 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.widget.Advanceable
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.ads.identifier.AdvertisingIdClient
+import androidx.ads.identifier.AdvertisingIdInfo
 import androidx.appcompat.app.AppCompatActivity
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.aware.Applications
-import com.aware.Aware
-import com.aware.Aware_Preferences
+import com.aware.*
+import com.aware.ui.esms.ESMFactory
+import com.aware.ui.esms.ESM_Freetext
+import com.aware.ui.esms.ESM_Radio
 import com.google.android.gms.common.internal.safeparcel.SafeParcelableSerializer
 import com.google.android.gms.location.ActivityTransition
 import com.google.android.gms.location.ActivityTransitionEvent
 import com.google.android.gms.location.ActivityTransitionResult
 import com.google.android.gms.location.DetectedActivity
+import com.google.common.util.concurrent.FutureCallback
+import com.google.common.util.concurrent.Futures.addCallback
 import com.jakewharton.threetenabp.AndroidThreeTen
-import de.lmu.js.interruptionesm.SessionState.Companion.interruptionObj
 import kotlinx.android.synthetic.main.activity_main.*
+import org.json.JSONException
 import org.threeten.bp.Duration
 import org.threeten.bp.LocalDate
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
 import java.util.*
+import java.util.concurrent.Executors
 
 
 //import com.aware.plugin.fitbit.Plugin
@@ -38,9 +45,12 @@ class MainActivity : AppCompatActivity() {
 
 
     private val TAG = MainActivity::class.java.simpleName
-    var broadcastReceiver: BroadcastReceiver? = null
+    var activityReceiver: BroadcastReceiver? = null
+    var esmReceiver: ESMReceiver? = ESMReceiver()
 
-    var userKey: String = "testUSR"//Settings.Secure.getString(this.getContentResolver(), Settings.Secure.ANDROID_ID);
+    //IS THIS SAVE??
+    lateinit var userKey: String
+
 
     private var txtActivity: TextView? = null
     private  var txtConfidence:TextView? = null
@@ -58,11 +68,9 @@ class MainActivity : AppCompatActivity() {
         btnStartTrcking = findViewById(R.id.btn_start_tracking)
         btnStopTracking = findViewById(R.id.btn_stop_tracking)
 
-        //btn_start_tracking.setOnClickListener(startTracking)
 
-        //btn_stop_tracking.setOnClickListener (stopTracking)
-
-        broadcastReceiver = object : BroadcastReceiver() {
+        userKey = Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID)
+        activityReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (intent.action == Constants.BROADCAST_DETECTED_ACTIVITY) {
                     val type = intent.getIntExtra("type", -1)
@@ -72,18 +80,52 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        var esmFilter = IntentFilter();
+        esmFilter.addAction(ESM.ACTION_AWARE_ESM_QUEUE_COMPLETE)
+        esmFilter.addAction(ESM.ACTION_AWARE_ESM_DISMISSED)
+        esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
+        registerReceiver(esmReceiver, esmFilter)
+
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
         Aware.startPlugins(this)
+        Aware.startScreen(this)
 
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, true)
 
         // Register for checking application use
         Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
         Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
+        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
 
         Applications.isAccessibilityServiceActive(this)
+
+
+        //LocalBroadcastManager.getInstance(this).registerReceiver(esmReceiver!!, esmFilter)
+
+
+        Screen.setSensorObserver(object : Screen.AWARESensorObserver {
+            override fun onScreenLocked() {
+                handleScreenInterruption("lock")
+            }
+
+            override fun onScreenOff() {
+                handleScreenInterruption("off")
+            }
+
+            override fun onScreenOn() {
+                Log.d("Ö", "Screen ON")
+            }
+
+            override fun onScreenUnlocked() {
+                Log.d("Ö", "Screen Unlocked")
+
+            }
+
+
+        })
+
         Applications.setSensorObserver(object : Applications.AWARESensorObserver {
             override fun onCrash(data: ContentValues?) {
 
@@ -107,7 +149,8 @@ class MainActivity : AppCompatActivity() {
 
             override fun onForeground(data: ContentValues?) {
                 Log.d("Ö", data!!.getAsString("package_name"))
-                if (data!!.getAsString("package_name") == "de.lmu.js.interruptionesm") {
+                var packName = data!!.getAsString("package_name")
+                if (packName == "de.lmu.js.interruptionesm") {
                     if (SessionState.sessionId == 0) {
                         startSession()
                         Log.d("Ö Session", "Started")
@@ -121,16 +164,22 @@ class MainActivity : AppCompatActivity() {
 
                 }
 
-                if (data!!.getAsString("package_name") != "de.lmu.js.interruptionesm") {
+                else {
                     if (SessionState.sessionId != 0) {
                         if (!SessionState.interruptState) {
                             //Look for trigger
-                            Log.d("Ö Interruption", "Started")
-                            startInterruption(InterruptType.APPLICATION_SWITCH, Trigger.NONE)
+
+                            if(packName == "com.android.systemui")  {
+                                //startInterruption(eventValue.SCREEN_LOCK)
+                            }
+                            else {
+                                Log.d("Ö Interruption", "Started")
+                                startInterruption(eventValue.APP_SWITCH)
+                            }
                         } else {
                             if (Duration.between(
-                                    interruptionObj.startTime,
-                                    LocalDate.now()
+                                    SessionState.interruptTmstmp,
+                                    LocalDateTime.now()
                                 ).seconds > 600
                             ) {
                                 stopInterruption()
@@ -158,19 +207,51 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    private fun handleScreenInterruption(trigger: String) {
+        Log.d("Ö", "Locked - " + trigger)
+        if (SessionState.sessionId != 0) {
+            // TODO : IS SCREEN OFF - SLEEP? APPEARS SO YES
+            if (!SessionState.interruptState) {
+                if (trigger == "lock") {
+                    startInterruption(eventValue.SCREEN_LOCK)
+                }
+                else {
+                    startInterruption(eventValue.SCREEN_OFF)
+                }
+            }
+        }
+    }
+
     private fun handleUserActivity(type: Int, confidence: Int) {
         var label = getString(R.string.activity_unknown)
         var icon = R.drawable.ic_still
+
         when (type) {
             DetectedActivity.IN_VEHICLE -> {
-                label = getString(R.string.activity_in_vehicle)
-                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.IN_VEHICLE, LocalDateTime.now(), confidence))
-                icon = R.drawable.ic_driving
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.IN_VEHICLE) {
+                    label = getString(R.string.activity_in_vehicle)
+                    SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.IN_VEHICLE, confidence))
+                    DatabaseRef.pushDB(
+                        eventType.MOVEMENT,
+                        eventValue.IN_VEHICLE,
+                        userKey,
+                        mapOf("Confidence" to confidence.toString())
+                    )
+                    icon = R.drawable.ic_driving
+                }
             }
             DetectedActivity.ON_BICYCLE -> {
-                label = getString(R.string.activity_on_bicycle)
-                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_BICYCLE, LocalDateTime.now(), confidence))
-                icon = R.drawable.ic_on_bicycle
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.ON_BICYCLE) {
+                    label = getString(R.string.activity_on_bicycle)
+                    SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.ON_BICYCLE, confidence))
+                    DatabaseRef.pushDB(
+                        eventType.MOVEMENT,
+                        eventValue.BYCICLE,
+                        userKey,
+                        mapOf("Confidence" to confidence.toString())
+                    )
+                    icon = R.drawable.ic_on_bicycle
+                }
             }
             DetectedActivity.ON_FOOT -> {
 
@@ -181,13 +262,29 @@ class MainActivity : AppCompatActivity() {
                 icon = R.drawable.ic_walking
             }
             DetectedActivity.RUNNING -> {
-                label = getString(R.string.activity_running)
-                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.RUNNING, LocalDateTime.now(), confidence))
-                icon = R.drawable.ic_running
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.RUNNING) {
+                    label = getString(R.string.activity_running)
+                    SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.RUNNING, confidence))
+                    DatabaseRef.pushDB(
+                        eventType.MOVEMENT,
+                        eventValue.RUNNING,
+                        userKey,
+                        mapOf("Confidence" to confidence.toString())
+                    )
+                    icon = R.drawable.ic_running
+                }
             }
             DetectedActivity.STILL -> {
-                label = getString(R.string.activity_still)
-                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.STILL, LocalDateTime.now(), confidence))
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.STILL) {
+                    label = getString(R.string.activity_still)
+                    SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.STILL, confidence))
+                    DatabaseRef.pushDB(
+                        eventType.MOVEMENT,
+                        eventValue.STILL,
+                        userKey,
+                        mapOf("Confidence" to confidence.toString())
+                    )
+                }
             }
             DetectedActivity.TILTING -> {
 
@@ -198,13 +295,22 @@ class MainActivity : AppCompatActivity() {
                 icon = R.drawable.ic_tilting
             }
             DetectedActivity.WALKING -> {
-                label = getString(R.string.activity_walking)
-                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.WALKING, LocalDateTime.now(), confidence))
-                icon = R.drawable.ic_walking
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.WALKING) {
+                    label = getString(R.string.activity_walking)
+                    //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.WALKING, LocalDateTime.now(), confidence))
+                    DatabaseRef.pushDB(
+                        eventType.MOVEMENT,
+                        eventValue.WALKING,
+                        userKey,
+                        mapOf("Confidence" to confidence.toString())
+                    )
+                    icon = R.drawable.ic_walking
+                }
             }
             DetectedActivity.UNKNOWN -> {
                 label = getString(R.string.activity_unknown)
-                SessionState.mvmntModality.add(Movement_Object(Movement_Mod.UNKNOWN, LocalDateTime.now(), confidence))
+                //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.UNKNOWN, LocalDateTime.now(), confidence))
+                DatabaseRef.pushDB(eventType.MOVEMENT, eventValue.NONE, userKey, mapOf("Confidence" to confidence.toString()))
             }
         }
         Log.e(TAG, "User activity: $label, Confidence: $confidence")
@@ -217,13 +323,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        //LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
+        //LocalBroadcastManager.getInstance(this).registerReceiver(activityReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
     }
 
     override fun onPause() {
        super.onPause()
         Log.d("Ö switch", "Is this switch?")
-        //LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver!!)
+        //LocalBroadcastManager.getInstance(this).unregisterReceiver(activityReceiver!!)
     }
 
     override fun onStop() {
@@ -238,7 +344,9 @@ class MainActivity : AppCompatActivity() {
         stopTracking()
         Log.d("Ö Session", "Closed App")
         Log.d("Ö Interruption", "Closed App")
-        LocalBroadcastManager.getInstance(this).unregisterReceiver(broadcastReceiver!!)
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(activityReceiver!!)
+        //TODO MAYBE WE CANT DO THAT HERE
+        unregisterReceiver(esmReceiver!!)
     }
 
     fun startTracking(){
@@ -261,60 +369,58 @@ class MainActivity : AppCompatActivity() {
         Log.d("Ö ", "In startSessY")
         SessionState.sessionId = LocalTime.now().hashCode();
         Log.d("Ö SessionID", SessionState.sessionId.toString())
-        SessionState.startTime = LocalDateTime.now();
-        LocalBroadcastManager.getInstance(this).registerReceiver(broadcastReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
+        LocalBroadcastManager.getInstance(this).registerReceiver(activityReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
         startTracking();
         DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
+        generateESM()
     }
 
     private fun stopSession() {
         if (SessionState.sessionId == 0) return;
-        SessionState.endTime = LocalDateTime.now();
-
-        //Start DB upload or start routine to wait for Wifi then DB upload
+        DatabaseRef.pushDB(eventType.SESSION_END, eventValue.NONE, userKey)
+        generateESM()
     }
 
-    private fun startInterruption(type: InterruptType, trig: Trigger) {
+    private fun generateESM() {
+        try {
+        var factory = ESMFactory();
+
+        var esmFreetext = ESM_Freetext();
+        esmFreetext.setTitle("What is on your mind?")
+        .setSubmitButton("Next")
+        .setInstructions("Tell us how you feel");
+
+        var esmRadio = ESM_Radio();
+        esmRadio.addRadio("Bored")
+        .addRadio("Fantastic")
+        .setTitle("Are you...")
+        .setInstructions("Pick one!")
+        .setSubmitButton("OK");
+
+        //add them to the factory
+        factory.addESM(esmFreetext);
+        factory.addESM(esmRadio);
+
+        //Queue them
+        ESM.queueESM(this, factory.build()); } catch (e: JSONException) { Log.e("ESM ERROR", e.toString()) }
+
+        DatabaseRef.pushDB(eventType.ESM_SENT, eventValue.NONE, userKey)
+    }
+
+    private fun startInterruption(eVal: eventValue) {
         if (SessionState.interruptState) return
         SessionState.interruptState = true;
-        interruptionObj = InterruptionObject(type, trig);
-        interruptionObj.startTime = LocalDateTime.now();
-        Log.d("Ö Int Time Start", interruptionObj.startTime.toString())
-        //Session Context
-        //SessionState.mvmntModality = MAYBE CALL
+        SessionState.interruptTmstmp = LocalDateTime.now()
+        DatabaseRef.pushDB(eventType.INTERRUPTION_START, eVal, userKey)
+
     }
 
     private fun stopInterruption() {
         if (!SessionState.interruptState) return
         SessionState.interruptState = false;
-        SessionState.interruptionObj.endTime = LocalDateTime.now();
-        Log.d("Ö Int Time ENd", interruptionObj.endTime.toString())
+        DatabaseRef.pushDB(eventType.INTERRUPTION_END, eventValue.NONE, userKey)
 
-        //Start DB upload or start routine to wait for Wifi then DB upload
     }
-
-    fun startMockActivity(view: View) {
-        var intent = Intent()//this, TransitionRecognitionReceiver::class.java)
-        // Your broadcast receiver action
-
-        intent.action = "de.lmu.js.interruptionesm.TRANSITION_RECOGNITION"
-        var events: ArrayList<ActivityTransitionEvent> = arrayListOf()
-
-        // You can set desired events with their corresponding state
-
-        var transitionExitEvent = ActivityTransitionEvent(DetectedActivity.STILL, ActivityTransition.ACTIVITY_TRANSITION_EXIT, SystemClock.elapsedRealtimeNanos())
-        events.add(transitionExitEvent)
-        var transitionEvent = ActivityTransitionEvent(DetectedActivity.WALKING, ActivityTransition.ACTIVITY_TRANSITION_ENTER, SystemClock.elapsedRealtimeNanos())
-        events.add(transitionEvent)
-
-        var result = ActivityTransitionResult(events)
-        SafeParcelableSerializer.serializeToIntentExtra(result, intent, "com.google.android.location.internal.EXTRA_ACTIVITY_TRANSITION_RESULT")
-
-        sendBroadcast(intent);
-
-        //LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
-    }
-
 
 
 }
