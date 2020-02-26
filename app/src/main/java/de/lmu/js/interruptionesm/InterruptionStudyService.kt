@@ -33,6 +33,7 @@ class InterruptionStudyService : Service() {
     private val TAG = MainActivity::class.java.simpleName
     var activityReceiver: BroadcastReceiver? = null
     var esmReceiver: ESMReceiver? = ESMReceiver()
+    private var appClosedReceiver: BroadcastReceiver? = null
 
     //IS THIS SAVE??
     lateinit var userKey: String
@@ -61,6 +62,17 @@ class InterruptionStudyService : Service() {
         esmFilter.addAction(ESM.ACTION_AWARE_ESM_DISMISSED)
         esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
         registerReceiver(esmReceiver, esmFilter)
+
+        appClosedReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                stopInterruption()
+                stopSession()
+            }
+        }
+
+        var appInstanceFilter = IntentFilter();
+        appInstanceFilter.addAction("LEARNING_APP_CLOSED")
+        registerReceiver(appClosedReceiver, appInstanceFilter)
 
         AndroidThreeTen.init(this);
 
@@ -98,8 +110,6 @@ class InterruptionStudyService : Service() {
                 Log.d("Ö", "Screen Unlocked")
 
             }
-
-
         })
 
         Applications.setSensorObserver(object : Applications.AWARESensorObserver {
@@ -348,7 +358,8 @@ class InterruptionStudyService : Service() {
         Log.d("Ö Session", "Closed App")
         Log.d("Ö Interruption", "Closed App")
         LocalBroadcastManager.getInstance(this).unregisterReceiver(activityReceiver!!)
-        //TODO MAYBE WE CANT DO THAT HERE
+
+        //TODO KILL APP WATCHER SERVCE?
         unregisterReceiver(esmReceiver!!)
     }
 
@@ -377,6 +388,7 @@ class InterruptionStudyService : Service() {
         LocalBroadcastManager.getInstance(this).registerReceiver(activityReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
         startTracking();
         DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
+        startService(Intent(this, AppTrackerService::class.java))
     }
 
     private fun stopSession() {
