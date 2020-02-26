@@ -42,7 +42,7 @@ class InterruptionStudyService : Service() {
         return null
     }
 
-    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int { // do your jobs here
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
 
         userKey = Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID)
 
@@ -387,6 +387,8 @@ class InterruptionStudyService : Service() {
 
     private fun generateESM() {
         try {
+
+            //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
             var factory = ESMFactory();
 
             var esmFreetext = ESM_Freetext();
