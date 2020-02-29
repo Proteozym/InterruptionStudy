@@ -17,11 +17,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.NotificationCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.*
-import com.aware.ui.esms.ESMFactory
-import com.aware.ui.esms.ESM_Freetext
-import com.aware.ui.esms.ESM_Radio
+import com.aware.ui.esms.*
 import com.google.android.gms.location.DetectedActivity
 import com.jakewharton.threetenabp.AndroidThreeTen
+import de.lmu.js.interruptionesm.SessionState.Companion.mvmntModalityRecord
 import org.json.JSONException
 import org.threeten.bp.Duration
 import org.threeten.bp.LocalDateTime
@@ -34,7 +33,8 @@ class InterruptionStudyService : Service() {
     var activityReceiver: BroadcastReceiver? = null
     var esmReceiver: ESMReceiver? = ESMReceiver()
     private var appClosedReceiver: BroadcastReceiver? = null
-
+    private var receivedMessage: Boolean = false
+    private var receivedCall: Boolean = false
     //IS THIS SAVE??
     lateinit var userKey: String
 
@@ -77,12 +77,14 @@ class InterruptionStudyService : Service() {
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
-        Aware.startPlugins(this)
+        //Aware.startPlugins(this)
         Aware.startScreen(this)
+       Aware.startCommunication(this)
 
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, true)
 
         // Register for checking application use
+        Aware.setSetting(this, Aware_Preferences.STATUS_COMMUNICATION_EVENTS, false)
         Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
         Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
         Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
@@ -110,6 +112,34 @@ class InterruptionStudyService : Service() {
                 Log.d("Ö", "Screen Unlocked")
 
             }
+        })
+
+        Communication.setSensorObserver(object: Communication.AWARESensorObserver {
+            override fun onCall(data: ContentValues?) {
+                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            }
+
+            override fun onMessage(data: ContentValues?) {
+                receivedMessage = true
+                Log.d("TTT", "message")
+                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            }
+
+            override fun onBusy(number: String?) {
+                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            }
+
+            override fun onRinging(number: String?) {
+                receivedCall = true
+                Log.d("TTT", "call")
+                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            }
+
+            override fun onFree(number: String?) {
+                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            }
+
+
         })
 
         Applications.setSensorObserver(object : Applications.AWARESensorObserver {
@@ -156,12 +186,10 @@ class InterruptionStudyService : Service() {
                         if (!SessionState.interruptState) {
                             //Look for trigger
 
-                            if(packName == "com.android.systemui")  {
+                            if(packName != "com.android.systemui")  {
                                 //startInterruption(eventValue.SCREEN_LOCK)
-                            }
-                            else {
                                 Log.d("Ö Interruption", "Started")
-                                startInterruption(eventValue.APP_SWITCH)
+                                startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString()))
                             }
                         } else {
                             if (Duration.between(
@@ -395,15 +423,34 @@ class InterruptionStudyService : Service() {
         if (SessionState.sessionId == 0) return;
         DatabaseRef.pushDB(eventType.SESSION_END, eventValue.NONE, userKey)
         generateESM()
+
+        //Reset Session
+        SessionState.sessionId = 0
+        SessionState.interruptState = false;
+        SessionState.mvmntModalityRecord = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
+        SessionState.esmCounter = 0
     }
 
     private fun generateESM() {
         try {
-
-            //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
             var factory = ESMFactory();
+            var questionCounter = 0
+            for (mov in mvmntModalityRecord) {
+                if (mov.confidence < 90) {
 
-            var esmFreetext = ESM_Freetext();
+                    var quickAnswer = ESM_QuickAnswer()
+                    quickAnswer.addQuickAnswer("Yes")
+                        .addQuickAnswer("No")
+                        .setInstructions("During your latest language session, were you " + mov.movement)
+                    factory.addESM(quickAnswer)
+
+                    questionCounter++
+                }
+            }
+            //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
+            SessionState.esmCounter = questionCounter
+
+          /*  var esmFreetext = ESM_Freetext();
             esmFreetext.setTitle("What is on your mind?")
                 .setSubmitButton("Next")
                 .setInstructions("Tell us how you feel");
@@ -419,17 +466,17 @@ class InterruptionStudyService : Service() {
             factory.addESM(esmFreetext);
             factory.addESM(esmRadio);
 
-            //Queue them
+            //Queue them*/
             ESM.queueESM(this, factory.build()); } catch (e: JSONException) { Log.e("ESM ERROR", e.toString()) }
 
-        DatabaseRef.pushDB(eventType.ESM_SENT, eventValue.NONE, userKey)
+            DatabaseRef.pushDB(eventType.ESM_SENT, eventValue.NONE, userKey)
     }
 
-    private fun startInterruption(eVal: eventValue) {
+    private fun startInterruption(eVal: eventValue, addProp: Map<String, String> = mapOf()) {
         if (SessionState.interruptState) return
         SessionState.interruptState = true;
         SessionState.interruptTmstmp = LocalDateTime.now()
-        DatabaseRef.pushDB(eventType.INTERRUPTION_START, eVal, userKey)
+        DatabaseRef.pushDB(eventType.INTERRUPTION_START, eVal, userKey, addProp)
 
     }
 

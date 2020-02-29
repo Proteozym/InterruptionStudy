@@ -9,6 +9,7 @@ import android.provider.Settings
 import android.util.Log
 import com.aware.ESM
 import com.aware.providers.ESM_Provider
+import com.google.gson.Gson
 import org.json.JSONObject
 
 class ESMReceiver: BroadcastReceiver() {
@@ -30,22 +31,19 @@ class ESMReceiver: BroadcastReceiver() {
 
             if (pending_esms != null && pending_esms.moveToFirst()) {
 
-                pending_esms.moveToPosition(pending_esms.count - 2 - 1) //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N (+1) -> Last Index
+
+
+                pending_esms.moveToPosition(pending_esms.count - SessionState.esmCounter - 1) //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N (+1) -> Last Index
                 val esmAnswerObj = JSONObject()
                 var i = 1
+                var gson = Gson()
                 while (pending_esms.moveToNext()) {
-                    Log.d("TTT", pending_esms.getString(5))
-                    esmAnswerObj.put("Question #" + i, pending_esms.getString(5))
-                    esmAnswerObj.put("Answer #" + i, pending_esms.getString(7))
-                    //2020-02-25 22:26:51.362 24310-24310/de.lmu.js.interruptionesm D/TTT: {"esm_type":1,"esm_title":"What is on your mind?","esm_submit":"Next","esm_instructions":"Tell us how you feel"}
-                    //2020-02-25 22:26:51.362 24310-24310/de.lmu.js.interruptionesm D/TTT: {"esm_type":2,"esm_radios":["Bored","Fantastic"],"esm_title":"Are you...","esm_instructions":"Pick one!","esm_submit":"OK"}
-                     // GET ANSWERS
+                    esmAnswerObj.put("Question #" + i, gson?.fromJson( pending_esms.getString(5).dropLast(1).plus(",\"esm_answer\":\""+pending_esms.getString(7)+"\"}"), ESM_Answer.ESM_Answer_Data::class.java))
                     i++
                 }
                 DatabaseRef.pushDB(eventType.ESM_ANSWER, eventValue.NONE, Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID), mapOf("Answer" to esmAnswerObj.toString()))
-                Log.d("TTT", esmAnswerObj.toString())
+
             }
-                //var result = pending_esms?.getString(pending_esms?.getColumnIndex("esm_answers"));
         }
 
         if (intent?.action == ESM.ACTION_AWARE_ESM_DISMISSED) {
