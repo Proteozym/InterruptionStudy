@@ -1,7 +1,9 @@
 package de.lmu.js.interruptionesm
 
 
+import android.Manifest
 import android.content.*
+import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.SystemClock
 import android.provider.Settings
@@ -14,6 +16,8 @@ import android.widget.TextView
 import androidx.ads.identifier.AdvertisingIdClient
 import androidx.ads.identifier.AdvertisingIdInfo
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.*
 import com.aware.ui.esms.ESMFactory
@@ -48,6 +52,7 @@ class MainActivity : AppCompatActivity() {
     private var imgActivity: ImageView? = null
     private var btnStartTrcking: Button? = null
     private  var btnStopTracking:android.widget.Button? = null
+    val MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: Int = 0;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,6 +64,13 @@ class MainActivity : AppCompatActivity() {
         btnStartTrcking = findViewById(R.id.btn_start_tracking)
         btnStopTracking = findViewById(R.id.btn_stop_tracking)
 
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)!= PackageManager.PERMISSION_GRANTED) {
+            Log.d("perm", "req")
+// We do not have this permission. Let’s ask the user
+            ActivityCompat.requestPermissions(this@MainActivity,
+                arrayOf(Manifest.permission.READ_PHONE_STATE),
+                MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
+        }
         startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
 
     }

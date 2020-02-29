@@ -1,12 +1,15 @@
 package de.lmu.js.interruptionesm
 
+import android.Manifest
 import android.R
 import android.app.*
 import android.content.*
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
+import android.telephony.TelephonyManager
 import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
@@ -14,7 +17,9 @@ import android.widget.TextView
 import androidx.annotation.Nullable
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.*
 import com.aware.ui.esms.*
@@ -32,11 +37,12 @@ class InterruptionStudyService : Service() {
     private val TAG = MainActivity::class.java.simpleName
     var activityReceiver: BroadcastReceiver? = null
     var esmReceiver: ESMReceiver? = ESMReceiver()
-    private var appClosedReceiver: BroadcastReceiver? = null
+    private var comReceiver: BroadcastReceiver? = null
     private var receivedMessage: Boolean = false
     private var receivedCall: Boolean = false
     //IS THIS SAVE??
     lateinit var userKey: String
+
 
     @Nullable
     override fun onBind(intent: Intent?): IBinder? {
@@ -63,65 +69,49 @@ class InterruptionStudyService : Service() {
         esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
         registerReceiver(esmReceiver, esmFilter)
 
-        appClosedReceiver = object : BroadcastReceiver() {
+
+
+
+//TODO IMPL MESSAGE INC
+        comReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                stopInterruption()
-                stopSession()
+                var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+                Log.d("TTT", state)
+                if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
+                }
+
             }
         }
 
-        var appInstanceFilter = IntentFilter();
-        appInstanceFilter.addAction("LEARNING_APP_CLOSED")
-        registerReceiver(appClosedReceiver, appInstanceFilter)
+        var communicationFilter = IntentFilter();
+        communicationFilter.addAction("android.intent.action.PHONE_STATE")
+        registerReceiver(comReceiver, communicationFilter)
 
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
         //Aware.startPlugins(this)
         Aware.startScreen(this)
-       Aware.startCommunication(this)
+        //Aware.startCommunication(this)
 
-        Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, true)
+        Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
 
         // Register for checking application use
         Aware.setSetting(this, Aware_Preferences.STATUS_COMMUNICATION_EVENTS, false)
-        Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
-        Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
-        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
+        Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false)
+        Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, false)
+        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, false)
 
         Applications.isAccessibilityServiceActive(this)
 
 
-        //LocalBroadcastManager.getInstance(this).registerReceiver(esmReceiver!!, esmFilter)
-
-
-        Screen.setSensorObserver(object : Screen.AWARESensorObserver {
-            override fun onScreenLocked() {
-                handleScreenInterruption("lock")
-            }
-
-            override fun onScreenOff() {
-                handleScreenInterruption("off")
-            }
-
-            override fun onScreenOn() {
-                Log.d("Ö", "Screen ON")
-            }
-
-            override fun onScreenUnlocked() {
-                Log.d("Ö", "Screen Unlocked")
-
-            }
-        })
-
         Communication.setSensorObserver(object: Communication.AWARESensorObserver {
             override fun onCall(data: ContentValues?) {
                 TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+                Log.d("TTT", "etsdtsf")
             }
 
             override fun onMessage(data: ContentValues?) {
-                receivedMessage = true
-                Log.d("TTT", "message")
                 TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
             }
 
@@ -130,8 +120,6 @@ class InterruptionStudyService : Service() {
             }
 
             override fun onRinging(number: String?) {
-                receivedCall = true
-                Log.d("TTT", "call")
                 TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
             }
 
@@ -139,8 +127,8 @@ class InterruptionStudyService : Service() {
                 TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
             }
 
-
         })
+
 
         Applications.setSensorObserver(object : Applications.AWARESensorObserver {
             override fun onCrash(data: ContentValues?) {
