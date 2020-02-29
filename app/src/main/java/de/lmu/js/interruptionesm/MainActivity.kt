@@ -53,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     private var btnStartTrcking: Button? = null
     private  var btnStopTracking:android.widget.Button? = null
     val MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: Int = 0;
+    val MY_PERMISSIONS_REQUEST_SMS: Int = 0;
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -65,11 +66,19 @@ class MainActivity : AppCompatActivity() {
         btnStopTracking = findViewById(R.id.btn_stop_tracking)
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)!= PackageManager.PERMISSION_GRANTED) {
-            Log.d("perm", "req")
+
 // We do not have this permission. Let’s ask the user
             ActivityCompat.requestPermissions(this@MainActivity,
                 arrayOf(Manifest.permission.READ_PHONE_STATE),
                 MY_PERMISSIONS_REQUEST_READ_PHONE_STATE);
+        }
+
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)!= PackageManager.PERMISSION_GRANTED) {
+
+// We do not have this permission. Let’s ask the user
+            ActivityCompat.requestPermissions(this@MainActivity,
+                arrayOf(Manifest.permission.RECEIVE_SMS),
+                MY_PERMISSIONS_REQUEST_SMS);
         }
         startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
 

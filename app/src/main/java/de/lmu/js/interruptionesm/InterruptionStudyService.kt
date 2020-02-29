@@ -75,32 +75,40 @@ class InterruptionStudyService : Service() {
 //TODO IMPL MESSAGE INC
         comReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+                if (intent.action.equals("android.provider.Telephony.SMS_RECEIVED")) {
+                    receivedMessage = true;
+                }
+                if (intent.action.equals("android.intent.action.PHONE_STATE")) {
+                    var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
+                    receivedCall = true;
+                }
+                Log.d("TTT", intent.toString())/*
+
                 Log.d("TTT", state)
                 if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
-                }
+                }*/
 
             }
         }
 
         var communicationFilter = IntentFilter();
         communicationFilter.addAction("android.intent.action.PHONE_STATE")
+        communicationFilter.addAction("android.provider.Telephony.SMS_RECEIVED")
         registerReceiver(comReceiver, communicationFilter)
 
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
-        //Aware.startPlugins(this)
+        Aware.startPlugins(this)
         Aware.startScreen(this)
         //Aware.startCommunication(this)
 
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
 
         // Register for checking application use
-        Aware.setSetting(this, Aware_Preferences.STATUS_COMMUNICATION_EVENTS, false)
-        Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, false)
-        Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, false)
-        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, false)
+        Aware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
+        Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
+        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
 
         Applications.isAccessibilityServiceActive(this)
 
@@ -177,9 +185,12 @@ class InterruptionStudyService : Service() {
                             if(packName != "com.android.systemui")  {
                                 //startInterruption(eventValue.SCREEN_LOCK)
                                 Log.d("Ö Interruption", "Started")
+                                Log.d("Ö Interruption", receivedCall.toString())
+                                Log.d("Ö Interruption", receivedMessage.toString())
                                 startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString()))
                             }
                         } else {
+                            Log.d("Ö Interruption", "Started2")
                             if (Duration.between(
                                     SessionState.interruptTmstmp,
                                     LocalDateTime.now()
@@ -470,8 +481,11 @@ class InterruptionStudyService : Service() {
 
     private fun stopInterruption() {
         if (!SessionState.interruptState) return
-        SessionState.interruptState = false;
+
         DatabaseRef.pushDB(eventType.INTERRUPTION_END, eventValue.NONE, userKey)
+        SessionState.interruptState = false;
+        receivedMessage = false;
+        receivedCall = false;
 
     }
 
