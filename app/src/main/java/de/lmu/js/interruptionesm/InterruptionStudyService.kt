@@ -36,6 +36,7 @@ class InterruptionStudyService : Service() {
 
     private val TAG = MainActivity::class.java.simpleName
     var activityReceiver: BroadcastReceiver? = null
+    var sessionTimeoutRec: BroadcastReceiver? = null
     var esmReceiver: ESMReceiver? = ESMReceiver()
     private var comReceiver: BroadcastReceiver? = null
     private var receivedMessage: Boolean = false
@@ -69,10 +70,6 @@ class InterruptionStudyService : Service() {
         esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
         registerReceiver(esmReceiver, esmFilter)
 
-
-
-
-//TODO IMPL MESSAGE INC
         comReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (intent.action.equals("android.provider.Telephony.SMS_RECEIVED")) {
@@ -91,18 +88,21 @@ class InterruptionStudyService : Service() {
             }
         }
 
-        var communicationFilter = IntentFilter();
-        communicationFilter.addAction("android.intent.action.PHONE_STATE")
-        communicationFilter.addAction("android.provider.Telephony.SMS_RECEIVED")
-        registerReceiver(comReceiver, communicationFilter)
+        sessionTimeoutRec = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                Log.d("WakeLock", "OUT")
+                stopInterruption()
+                stopSession()
+                stopTracking()
+            }
+        }
+
 
         AndroidThreeTen.init(this);
 
         Aware.startAWARE(this)
         Aware.startPlugins(this)
         Aware.startScreen(this)
-        //Aware.startCommunication(this)
-
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
 
         // Register for checking application use
@@ -112,29 +112,23 @@ class InterruptionStudyService : Service() {
 
         Applications.isAccessibilityServiceActive(this)
 
-
-        Communication.setSensorObserver(object: Communication.AWARESensorObserver {
-            override fun onCall(data: ContentValues?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-                Log.d("TTT", "etsdtsf")
+        Screen.setSensorObserver(object : Screen.AWARESensorObserver {
+            override fun onScreenLocked() {
+                handleScreenInterruption("lock")
             }
 
-            override fun onMessage(data: ContentValues?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            override fun onScreenOff() {
+                handleScreenInterruption("off")
             }
 
-            override fun onBusy(number: String?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
+            override fun onScreenOn() {
+                Log.d("Ö", "Screen ON")
             }
 
-            override fun onRinging(number: String?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
-            }
+            override fun onScreenUnlocked() {
+                handleScreenInterruption("on")
 
-            override fun onFree(number: String?) {
-                TODO("not implemented") //To change body of created functions use File | Settings | File Templates.
             }
-
         })
 
 
@@ -181,20 +175,18 @@ class InterruptionStudyService : Service() {
                     if (SessionState.sessionId != 0) {
                         if (!SessionState.interruptState) {
                             //Look for trigger
-
-                            if(packName != "com.android.systemui")  {
-                                //startInterruption(eventValue.SCREEN_LOCK)
-                                Log.d("Ö Interruption", "Started")
-                                Log.d("Ö Interruption", receivedCall.toString())
-                                Log.d("Ö Interruption", receivedMessage.toString())
-                                startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString()))
+                            if(packName == "com.android.systemui")  {
+                                //Do we want to handle this differently?
+                                startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString(), "switchedTo" to packName))
+                            }
+                            else {
+                                startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString(), "switchedTo" to packName))
                             }
                         } else {
-                            Log.d("Ö Interruption", "Started2")
                             if (Duration.between(
                                     SessionState.interruptTmstmp,
                                     LocalDateTime.now()
-                                ).seconds > 600
+                                ).seconds > 20 //600
                             ) {
                                 stopInterruption()
                                 stopSession()
@@ -209,16 +201,6 @@ class InterruptionStudyService : Service() {
 
             }
         })
-
-
-        //Passive Sensors
-        if (SessionState.interruptState) {
-            //Movement Modality Logging
-
-            //
-        }
-
-
         startForeground()
         return super.onStartCommand(intent, flags, startId)
     }
@@ -269,13 +251,19 @@ class InterruptionStudyService : Service() {
         if (SessionState.sessionId != 0) {
             // TODO : IS SCREEN OFF - SLEEP? APPEARS SO YES
             if (!SessionState.interruptState) {
+                if (trigger == "on") {
+                    stopInterruption()
+                    return
+                }
                 if (trigger == "lock") {
                     startInterruption(eventValue.SCREEN_LOCK)
                 }
                 else {
                     startInterruption(eventValue.SCREEN_OFF)
                 }
+
             }
+
         }
     }
 
@@ -412,10 +400,22 @@ class InterruptionStudyService : Service() {
         Log.d("Ö ", "In startSessY")
         SessionState.sessionId = LocalTime.now().hashCode();
         Log.d("Ö SessionID", SessionState.sessionId.toString())
-        LocalBroadcastManager.getInstance(this).registerReceiver(activityReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
+        registerReceiver(activityReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
         startTracking();
+
+
+        var communicationFilter = IntentFilter();
+        communicationFilter.addAction("android.intent.action.PHONE_STATE")
+        communicationFilter.addAction("android.provider.Telephony.SMS_RECEIVED")
+        registerReceiver(comReceiver, communicationFilter)
+
         DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
-        startService(Intent(this, AppTrackerService::class.java))
+        //startService(Intent(this, AppTrackerService::class.java))
+        receivedMessage = false;
+        receivedCall = false;
+
+        registerReceiver(sessionTimeoutRec!!, IntentFilter("SESSION_TIMED_OUT"))
+
     }
 
     private fun stopSession() {
@@ -428,9 +428,14 @@ class InterruptionStudyService : Service() {
         SessionState.interruptState = false;
         SessionState.mvmntModalityRecord = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
         SessionState.esmCounter = 0
+
+        unregisterReceiver(comReceiver!!)
+        unregisterReceiver(activityReceiver!!)
+        unregisterReceiver(sessionTimeoutRec!!)
+        stopService(Intent(this, TrackerWakelock::class.java))
     }
 
-    private fun generateESM() {
+    public fun generateESM() {
         try {
             var factory = ESMFactory();
             var questionCounter = 0
@@ -476,7 +481,7 @@ class InterruptionStudyService : Service() {
         SessionState.interruptState = true;
         SessionState.interruptTmstmp = LocalDateTime.now()
         DatabaseRef.pushDB(eventType.INTERRUPTION_START, eVal, userKey, addProp)
-
+        startService(Intent(this, TrackerWakelock::class.java))
     }
 
     private fun stopInterruption() {
@@ -486,7 +491,7 @@ class InterruptionStudyService : Service() {
         SessionState.interruptState = false;
         receivedMessage = false;
         receivedCall = false;
-
+        stopService(Intent(this, TrackerWakelock::class.java))
     }
 
 }

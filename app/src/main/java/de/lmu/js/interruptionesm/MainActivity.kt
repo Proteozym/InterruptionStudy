@@ -2,56 +2,25 @@ package de.lmu.js.interruptionesm
 
 
 import android.Manifest
-import android.content.*
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
-import android.os.SystemClock
-import android.provider.Settings
 import android.util.Log
-import android.view.View
-import android.widget.Advanceable
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.TextView
-import androidx.ads.identifier.AdvertisingIdClient
-import androidx.ads.identifier.AdvertisingIdInfo
+import android.view.MenuItem
+import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.aware.*
-import com.aware.ui.esms.ESMFactory
-import com.aware.ui.esms.ESM_Freetext
-import com.aware.ui.esms.ESM_Radio
-import com.google.android.gms.common.internal.safeparcel.SafeParcelableSerializer
-import com.google.android.gms.location.ActivityTransition
-import com.google.android.gms.location.ActivityTransitionEvent
-import com.google.android.gms.location.ActivityTransitionResult
-import com.google.android.gms.location.DetectedActivity
-import com.google.common.util.concurrent.FutureCallback
-import com.google.common.util.concurrent.Futures.addCallback
-import com.jakewharton.threetenabp.AndroidThreeTen
-import kotlinx.android.synthetic.main.activity_main.*
-import org.json.JSONException
-import org.threeten.bp.Duration
-import org.threeten.bp.LocalDate
-import org.threeten.bp.LocalDateTime
-import org.threeten.bp.LocalTime
-import java.util.*
-import java.util.concurrent.Executors
+import androidx.core.view.GravityCompat
+import androidx.drawerlayout.widget.DrawerLayout
+import com.google.android.material.navigation.NavigationView
 
 
-//import com.aware.plugin.fitbit.Plugin
-//import com.aware.plugin.google.activity_recognition.Plugin.ACTION_AWARE_GOOGLE_ACTIVITY_RECOGNITION
+class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
 
-
-class MainActivity : AppCompatActivity() {
-
-    private var txtActivity: TextView? = null
-    private  var txtConfidence:TextView? = null
-    private var imgActivity: ImageView? = null
-    private var btnStartTrcking: Button? = null
-    private  var btnStopTracking:android.widget.Button? = null
+    lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    lateinit var drawerLayout: DrawerLayout
+    lateinit var navView: NavigationView
     val MY_PERMISSIONS_REQUEST_READ_PHONE_STATE: Int = 0;
     val MY_PERMISSIONS_REQUEST_SMS: Int = 0;
 
@@ -59,11 +28,18 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        txtActivity = findViewById(R.id.txt_activity)
-        txtConfidence = findViewById(R.id.txt_confidence)
-        imgActivity = findViewById(R.id.img_activity)
-        btnStartTrcking = findViewById(R.id.btn_start_tracking)
-        btnStopTracking = findViewById(R.id.btn_stop_tracking)
+        toolbar = findViewById(R.id.toolbar)
+        setSupportActionBar(toolbar)
+
+        drawerLayout = findViewById(R.id.drawer_layout)
+        navView = findViewById(R.id.nav_view)
+
+        val toggle = ActionBarDrawerToggle(
+            this, drawerLayout, toolbar, 0, 0
+        )
+        drawerLayout.addDrawerListener(toggle)
+        toggle.syncState()
+        navView.setNavigationItemSelectedListener(this)
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)!= PackageManager.PERMISSION_GRANTED) {
 
@@ -84,7 +60,17 @@ class MainActivity : AppCompatActivity() {
 
     }
 
-
+    override fun onNavigationItemSelected(item: MenuItem): Boolean {
+        when (item.itemId) {
+            R.id.nav_profile -> {
+                //setContentView(R.layout.activity_timeline)
+                val myIntent = Intent(this, TimelineActivity::class.java)
+                startActivityForResult(myIntent, 0)
+            }
+        }
+        drawerLayout.closeDrawer(GravityCompat.START)
+        return true
+    }
 
     override fun onResume() {
         super.onResume()

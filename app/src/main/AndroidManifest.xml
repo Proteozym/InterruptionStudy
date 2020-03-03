@@ -17,13 +17,16 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <activity android:name=".MainActivity" android:screenOrientation="portrait" >
+        <activity android:name=".MainActivity" android:theme="@style/AppTheme.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity android:name=".TimelineActivity" android:theme="@style/AppTheme.NoActionBar"></activity>
+
+
         <!-- Service that provides activity recognition data. Setting the android:exported attribute
          to "false" stops other apps from starting this service, even when using an explicit
          intent. -->
@@ -34,5 +37,6 @@
 
         <service android:name=".InterruptionStudyService" android:exported="false" />
         <service android:name=".AppTrackerService" android:exported="false" />
+        <service android:name=".TrackerWakelock" android:exported="false" />
     </application>
 </manifest>
