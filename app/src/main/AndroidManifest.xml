@@ -25,6 +25,7 @@
             </intent-filter>
         </activity>
         <activity android:name=".TimelineActivity" android:theme="@style/AppTheme.NoActionBar"></activity>
+        <activity android:name=".SessionListView" android:theme="@style/AppTheme.NoActionBar"></activity>
 
 
         <!-- Service that provides activity recognition data. Setting the android:exported attribute

@@ -1,33 +1,18 @@
 package de.lmu.js.interruptionesm
-
 import org.threeten.bp.LocalDateTime
-import java.net.IDN
-import java.util.*
 
-//connect to database fun?
-//how to handle user ident
 
-class UserEvent(type: eventType, eValue: eventValue, key: String, addProp: Map<String, String>) {
-    var eventType: eventType
-    var eventValue: eventValue
-    var timeStamp: LocalDateTime
-    var userKey: String
-    var sessionId: Int = SessionState.sessionId
-    var additionalProps: Map<String, String>
-
-    init {
-        eventType = type
-        eventValue = eValue
-        timeStamp = LocalDateTime.now()
-        userKey = key
-
-        additionalProps = addProp
-    }
-
-}
+data class UserEvent(
+    val eventType: eventType? = null,
+    val eventValue: eventValue? = null,
+    val userKey: String = "",
+    val additionalProps: Map<String, String> = mapOf(),
+    val timestamp: LocalDateTime = LocalDateTime.now(),
+    val sessionId: Int = SessionState.sessionId
+)
 
 enum class eventType {
-    SESSION_START, SESSION_END, INTERRUPTION_START, INTERRUPTION_END, MOVEMENT, COMMUNICATION, ESM_SENT, ESM_ANSWER, ESM_EXPIRED
+    SESSION_START, SESSION_END, INTERRUPTION_START, INTERRUPTION_END, MOVEMENT, COMMUNICATION, ESM_SENT, ESM_ANSWER, ESM_EXPIRED, NONE
 }
 
 enum class eventValue {

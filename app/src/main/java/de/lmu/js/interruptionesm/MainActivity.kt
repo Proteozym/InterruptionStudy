@@ -64,7 +64,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         when (item.itemId) {
             R.id.nav_profile -> {
                 //setContentView(R.layout.activity_timeline)
-                val myIntent = Intent(this, TimelineActivity::class.java)
+                val myIntent = Intent(this, SessionListView::class.java)
                 startActivityForResult(myIntent, 0)
             }
         }
