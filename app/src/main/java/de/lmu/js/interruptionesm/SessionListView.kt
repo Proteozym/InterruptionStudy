@@ -69,19 +69,22 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
 
         if (!isNullOrEmpty(userKey)) {
             mMainList = findViewById(R.id.main_list)
-            mMainList.layoutManager = LinearLayoutManager(this)
 
-            val itemOnClick: (View, Int, Int) -> Unit = { view, position, type ->
-
-
-            }
 
             val query = dbInstance!!.collection("UserEvent").whereEqualTo("userKey", userKey).whereEqualTo("eventType", "SESSION_START")//.orderBy("productName", Query.Direction.ASCENDING)
 
             val options = FirestoreRecyclerOptions.Builder<UserEvent>().setQuery(query, UserEvent::class.java).build()
 
-            adapter = ProductFirestoreRecyclerAdapter(options, itemOnClick)
+            adapter = ProductFirestoreRecyclerAdapter(options)
+
             mMainList.adapter = adapter
+            mMainList.layoutManager = LinearLayoutManager(this)
+
+            adapter?.itemClickListener = { event ->
+
+                // do something with your item
+                Log.d("TAG", event.sessionId.toString())
+            }
 
 
         }
@@ -97,10 +100,11 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
         super.onStop()
 
         if (adapter != null) {
+
             adapter!!.stopListening()
         }
     }
-//TimelineActivity::class.java
+    //TimelineActivity::class.java
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
             R.id.nav_home -> {
@@ -115,32 +119,48 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
 
 
 
-    private inner class ProductFirestoreRecyclerAdapter internal constructor(options: FirestoreRecyclerOptions<UserEvent>, val itemClickListener: (View, Int, Int) -> Unit) : FirestoreRecyclerAdapter<UserEvent, ProductFirestoreRecyclerAdapter.SessionViewHolder>(options) {
-        override fun onBindViewHolder(productViewHolder: SessionViewHolder, position: Int, sessionModel: UserEvent) {
-            productViewHolder.setSession(sessionModel.timestamp.toString())
-        }
 
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SessionViewHolder {
-            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_session, parent, false)
-            SessionViewHolder(view).onClick(itemClickListener)
-            return SessionViewHolder(view)
-        }
 
-        inner class SessionViewHolder (val view: View) : RecyclerView.ViewHolder(view) {
 
-            internal fun setSession(session: String) {
-                val textView = view.findViewById<TextView>(R.id.text_view)
-                textView.text = session
+}
+
+class ProductFirestoreRecyclerAdapter internal constructor(options: FirestoreRecyclerOptions<UserEvent>) : FirestoreRecyclerAdapter<UserEvent, ProductFirestoreRecyclerAdapter.SessionViewHolder>(options) {
+
+    // var options: FirestoreRecyclerOptions<UserEvent>? = null
+    // init {
+    var itemClickListener: ((UserEvent) -> Unit)? = null
+    var events: List<UserEvent>? = null
+    //}
+    override fun onBindViewHolder(productViewHolder: ProductFirestoreRecyclerAdapter.SessionViewHolder, position: Int, userEvent: UserEvent) {
+        productViewHolder.setSessName(userEvent)
+        /*val textView = productViewHolder.view.findViewById<TextView>(R.id.text_view)
+
+        val eve = events?.get(position)
+        textView.text = userEvent.timestamp.toString()*/
+    }
+
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): SessionViewHolder {
+        val view = LayoutInflater.from(parent.context).inflate(R.layout.item_session, parent, false)
+
+        return SessionViewHolder(view)
+    }
+
+    inner class SessionViewHolder (val view: View) : RecyclerView.ViewHolder(view) {
+        internal fun setSessName(userEvent: UserEvent) {
+            val textView = view.findViewById<TextView>(R.id.text_view)
+            textView.text = userEvent.timestamp.toString()
+            textView.setOnClickListener {
+                itemClickListener?.invoke(userEvent)
             }
-
         }
+        /*init {
+            itemView.setOnClickListener {
+                itemClickListener?.invoke(events!![adapterPosition])
+            }
+        }*/
     }
 
-    fun <T : RecyclerView.ViewHolder> T.onClick(event: (view: View, position: Int, type: Int) -> Unit): T {
-        itemView.setOnClickListener {
-            event.invoke(it, getAdapterPosition(), getItemViewType())
-        }
-        return this
-    }
-
+  /*  override fun getItemCount(): Int {
+        return 0
+    }*/
 }
