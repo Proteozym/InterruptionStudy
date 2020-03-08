@@ -25,7 +25,6 @@ import com.google.android.material.navigation.NavigationView
 import com.google.common.base.Strings.isNullOrEmpty
 import com.google.firebase.firestore.*
 import com.google.firebase.firestore.auth.User
-import de.lmu.js.interruptionesm.DatabaseRef.populateListWithSessionsForUserKey
 
 import kotlinx.coroutines.MainScope
 import kotlinx.android.synthetic.main.activity_main.*
@@ -84,6 +83,11 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
 
                 // do something with your item
                 Log.d("TAG", event.sessionId.toString())
+                val myIntent = Intent(this, TimelineActivity::class.java)
+                var bundle = Bundle()
+                bundle.putInt("sessionId", event.sessionId)
+                myIntent.putExtras(bundle)
+                startActivityForResult(myIntent, 0)
             }
 
 

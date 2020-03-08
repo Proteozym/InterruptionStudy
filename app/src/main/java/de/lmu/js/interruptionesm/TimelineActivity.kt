@@ -1,10 +1,12 @@
 package de.lmu.js.interruptionesm
 
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.BitmapFactory
 import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.MenuItem
 import android.view.View
 import android.widget.ArrayAdapter
@@ -13,22 +15,34 @@ import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.gms.tasks.OnCompleteListener
 import com.google.android.material.navigation.NavigationView
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.QuerySnapshot
 import org.qap.ctimelineview.TimelineRow
 import org.qap.ctimelineview.TimelineViewAdapter
+import org.threeten.bp.DateTimeUtils
+import org.threeten.bp.Instant
+import org.threeten.bp.ZoneId
 import java.util.*
 import kotlin.collections.ArrayList
 
 
 class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
 
-     lateinit var toolbar: androidx.appcompat.widget.Toolbar
-     lateinit var drawerLayout: DrawerLayout
-     lateinit var navView: NavigationView
+    lateinit var toolbar: androidx.appcompat.widget.Toolbar
+    lateinit var drawerLayout: DrawerLayout
+    lateinit var navView: NavigationView
+    lateinit private var mMainList: RecyclerView
+    private val dbInstance: FirebaseFirestore by lazy { FirebaseFirestore.getInstance() }
+
+    var sessionId = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_timeline)
+
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -43,71 +57,90 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
         toggle.syncState()
         navView.setNavigationItemSelectedListener(this)
 
+        var bundle = intent.extras
+        sessionId = bundle?.getInt("sessionId")!!
+
+        Log.d("iniit", sessionId.toString())
+
         createTimeline()
 
     }
 
      private fun createTimeline() {
-         // Create Timeline rows List
-         // Create Timeline rows List
+
          val timelineRowsList: ArrayList<TimelineRow> = ArrayList()
+         readData(object : MyCallback {
+             override fun onCallback(eventList: List<UserEvent?>?, context: Context) {
 
-         // Create new timeline row (Row Id)
-         val myRow = TimelineRow(0)
+                 if (eventList != null) {
+                     for (event in eventList) {
+                         Log.d("noway..", event.toString())
+                         // Create new timeline row (Row Id)
+                         val myRow = TimelineRow(0)
 
-         // To set the row Date (optional)
-         myRow.date = Date()
+                         // To set the row Date (optional)
+                         /*val instant: Instant =
+                             event?.timestamp?.toDate()?.atTime(event?.timestamp?.toLocalTime())?.atZone(ZoneId.systemDefault())!!
+                                 .toInstant()*/
 
-         // To set the row Title (optional)
-         myRow.title = "Title"
+                         myRow.date =  event?.timestamp?.toDate()
 
-         // To set the row Description (optional)
-         myRow.description = "Description"
+                         // To set the row Title (optional)
+                         myRow.title = event?.eventType.toString()
 
-         // To set the row bitmap image (optional)
-         myRow.image = BitmapFactory.decodeResource(resources, de.lmu.js.interruptionesm.R.drawable.ic_action_esm)
+                         // To set the row Description (optional)
+                         myRow.description = event?.eventValue.toString()
 
-         // To set row Below Line Color (optional)
-         myRow.bellowLineColor = Color.argb(255, 0, 0, 0)
+                         // To set the row bitmap image (optional)
+                         myRow.image = BitmapFactory.decodeResource(
+                             resources,
+                             de.lmu.js.interruptionesm.R.drawable.ic_action_esm
+                         )
 
-         // To set row Below Line Size in dp (optional)
-         myRow.bellowLineSize = 6
+                         // To set row Below Line Color (optional)
+                         myRow.bellowLineColor = Color.argb(255, 0, 0, 0)
 
-         // To set row Image Size in dp (optional)
-         myRow.imageSize = 40
+                         // To set row Below Line Size in dp (optional)
+                         myRow.bellowLineSize = 6
 
-         // To set background color of the row image (optional)
-         myRow.backgroundColor = Color.argb(255, 0, 0, 0)
+                         // To set row Image Size in dp (optional)
+                         myRow.imageSize = 40
 
-         // To set the Background Size of the row image in dp (optional)
-         myRow.backgroundSize = 60
+                         // To set background color of the row image (optional)
+                         myRow.backgroundColor = Color.argb(255, 0, 0, 0)
 
-         // To set row Date text color (optional)
-         myRow.dateColor = Color.argb(255, 0, 0, 0)
+                         // To set the Background Size of the row image in dp (optional)
+                         myRow.backgroundSize = 60
 
-         // To set row Title text color (optional)
-         myRow.titleColor = Color.argb(255, 0, 0, 0)
+                         // To set row Date text color (optional)
+                         myRow.dateColor = Color.argb(255, 0, 0, 0)
 
-         // To set row Description text color (optional)
-         myRow.descriptionColor = Color.argb(255, 0, 0, 0)
+                         // To set row Title text color (optional)
+                         myRow.titleColor = Color.argb(255, 0, 0, 0)
 
-         // Add the new row to the list
-         timelineRowsList.add(myRow)
-         timelineRowsList.add(myRow)
-         timelineRowsList.add(myRow)
+                         // To set row Description text color (optional)
+                         myRow.descriptionColor = Color.argb(255, 0, 0, 0)
 
+                         // Add the new row to the list
+                         timelineRowsList.add(myRow)
+                     }
+                     val myAdapter: ArrayAdapter<TimelineRow> = TimelineViewAdapter(
+                         context, 0, timelineRowsList,  //if true, list will be sorted by date
+                         true
+                     )
+
+
+                     // Get the ListView and Bind it with the Timeline Adapter
+                     val myListView: ListView =
+                         findViewById<View>(R.id.timeline_listView) as ListView
+                     myListView.setAdapter(myAdapter)
+                 }
+
+             }
+         })
 
          // Create the Timeline Adapter
-         val myAdapter: ArrayAdapter<TimelineRow> = TimelineViewAdapter(
-             this, 0, timelineRowsList,  //if true, list will be sorted by date
-             false
-         )
 
-
-         // Get the ListView and Bind it with the Timeline Adapter
-         val myListView: ListView =
-             findViewById<View>(R.id.timeline_listView) as ListView
-         myListView.setAdapter(myAdapter)
      }
 
      override fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -120,6 +153,23 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
          drawerLayout.closeDrawer(GravityCompat.START)
          return true
      }
+
+    interface MyCallback {
+        fun onCallback(attractionsList: List<UserEvent?>?, context: Context)
+    }
+
+    fun readData(myCallback: MyCallback) {
+        dbInstance.collection("UserEvent").whereEqualTo("sessionId", sessionId).get().addOnCompleteListener(OnCompleteListener<QuerySnapshot> { task ->
+            if (task.isSuccessful) {
+                val attractionsList: MutableList<UserEvent?> = ArrayList()
+                for (document in task.result!!) {
+                    val uEve: UserEvent = document.toObject(UserEvent::class.java)
+                    attractionsList.add(uEve)
+                }
+                myCallback.onCallback(attractionsList, this)
+            }
+        })
+    }
 
 
  }
