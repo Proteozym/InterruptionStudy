@@ -1,4 +1,5 @@
 package de.lmu.js.interruptionesm
+import com.google.firebase.Timestamp
 import org.threeten.bp.LocalDateTime
 
 
@@ -7,7 +8,7 @@ data class UserEvent(
     val eventValue: eventValue? = null,
     val userKey: String = "",
     val additionalProps: Map<String, String> = mapOf(),
-    val timestamp: LocalDateTime = LocalDateTime.now(),
+    val timestamp: Timestamp = Timestamp.now(),
     val sessionId: Int = SessionState.sessionId
 )
 
