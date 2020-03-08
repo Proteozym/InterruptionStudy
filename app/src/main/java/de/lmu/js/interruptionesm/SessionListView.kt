@@ -15,6 +15,7 @@ import android.widget.ListView
 import android.widget.TextView
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.cardview.widget.CardView
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -29,6 +30,7 @@ import com.google.firebase.firestore.auth.User
 import kotlinx.coroutines.MainScope
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_list.*
+import java.text.SimpleDateFormat
 
 class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
 
@@ -152,10 +154,15 @@ class ProductFirestoreRecyclerAdapter internal constructor(options: FirestoreRec
     inner class SessionViewHolder (val view: View) : RecyclerView.ViewHolder(view) {
         internal fun setSessName(userEvent: UserEvent) {
             val textView = view.findViewById<TextView>(R.id.text_view)
-            textView.text = userEvent.timestamp.toString()
-            textView.setOnClickListener {
+            val card = view.findViewById<CardView>(R.id.card_view)
+            textView.text = "Session"
+
+            card.setOnClickListener {
                 itemClickListener?.invoke(userEvent)
             }
+            val sdf = SimpleDateFormat("EE - dd MMMM hh:mm")
+            val itemDate = view.findViewById<TextView>(R.id.itemDate)
+            itemDate.text = sdf.format(userEvent.timestamp.toDate())
         }
         /*init {
             itemView.setOnClickListener {

@@ -24,7 +24,11 @@ import org.qap.ctimelineview.TimelineRow
 import org.qap.ctimelineview.TimelineViewAdapter
 import org.threeten.bp.DateTimeUtils
 import org.threeten.bp.Instant
+import org.threeten.bp.LocalDate
 import org.threeten.bp.ZoneId
+import java.lang.String.format
+import java.text.SimpleDateFormat
+import java.time.Instant.now
 import java.util.*
 import kotlin.collections.ArrayList
 
@@ -73,20 +77,19 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
              override fun onCallback(eventList: List<UserEvent?>?, context: Context) {
 
                  if (eventList != null) {
-                     for (event in eventList) {
-                         Log.d("noway..", event.toString())
+                     Log.d("noway..", eventList.toString())
+
+                     for (event in eventList.sortedBy { it?.timestamp?.toDate() }) {
+
                          // Create new timeline row (Row Id)
                          val myRow = TimelineRow(0)
 
                          // To set the row Date (optional)
-                         /*val instant: Instant =
-                             event?.timestamp?.toDate()?.atTime(event?.timestamp?.toLocalTime())?.atZone(ZoneId.systemDefault())!!
-                                 .toInstant()*/
-
-                         myRow.date =  event?.timestamp?.toDate()
-
+                         Log.d("noway..", event?.timestamp?.toDate().toString())
+                         //myRow.date =  event?.timestamp?.toDate()
                          // To set the row Title (optional)
-                         myRow.title = event?.eventType.toString()
+                         val sdf = SimpleDateFormat("hh:mm:ss")
+                         myRow.title = event?.eventType.toString() + " (" + sdf.format(event?.timestamp?.toDate()) + ")"
 
                          // To set the row Description (optional)
                          myRow.description = event?.eventValue.toString()
@@ -126,7 +129,7 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
                      }
                      val myAdapter: ArrayAdapter<TimelineRow> = TimelineViewAdapter(
                          context, 0, timelineRowsList,  //if true, list will be sorted by date
-                         true
+                         false
                      )
 
 
