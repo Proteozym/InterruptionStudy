@@ -52,20 +52,20 @@ class BackgroundDetectedActivitiesService: Service() {
                 mPendingIntent
             )
         task.addOnSuccessListener {
-            Toast.makeText(
+            /*Toast.makeText(
                 getApplicationContext(),
                 "Successfully requested activity updates",
                 Toast.LENGTH_SHORT
             )
-                .show()
+                .show()*/
         }
         task.addOnFailureListener {
-            Toast.makeText(
+            /*Toast.makeText(
                 getApplicationContext(),
                 "Requesting activity updates failed to start",
                 Toast.LENGTH_SHORT
             )
-                .show()
+                .show()*/
         }
     }
 
@@ -75,18 +75,18 @@ class BackgroundDetectedActivitiesService: Service() {
                 mPendingIntent
             )
         task.addOnSuccessListener {
-            Toast.makeText(
+            /*Toast.makeText(
                 getApplicationContext(),
                 "Removed activity updates successfully!",
                 Toast.LENGTH_SHORT
             )
-                .show()
+                .show()*/
         }
         task.addOnFailureListener {
-            Toast.makeText(
+            /*Toast.makeText(
                 getApplicationContext(), "Failed to remove activity updates!",
                 Toast.LENGTH_SHORT
-            ).show()
+            ).show()*/
         }
     }
 

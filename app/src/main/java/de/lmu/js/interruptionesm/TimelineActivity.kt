@@ -13,6 +13,8 @@ import android.widget.ArrayAdapter
 import android.widget.ListView
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.graphics.drawable.toBitmap
 import androidx.core.view.GravityCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.recyclerview.widget.RecyclerView
@@ -92,37 +94,124 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
                          myRow.title = event?.eventType.toString() + " (" + sdf.format(event?.timestamp?.toDate()) + ")"
 
                          // To set the row Description (optional)
-                         myRow.description = event?.eventValue.toString()
-
-                         // To set the row bitmap image (optional)
-                         myRow.image = BitmapFactory.decodeResource(
-                             resources,
-                             de.lmu.js.interruptionesm.R.drawable.ic_action_esm
-                         )
+                         val eveVal = event?.eventValue
+                         if (eveVal != eventValue.NONE) {
+                             myRow.description = event?.eventValue.toString()
+                         }
 
                          // To set row Below Line Color (optional)
-                         myRow.bellowLineColor = Color.argb(255, 0, 0, 0)
+                         myRow.bellowLineColor = Color.argb(255, 44, 44, 44)
 
                          // To set row Below Line Size in dp (optional)
-                         myRow.bellowLineSize = 6
-
-                         // To set row Image Size in dp (optional)
-                         myRow.imageSize = 40
+                         myRow.bellowLineSize = 4
 
                          // To set background color of the row image (optional)
-                         myRow.backgroundColor = Color.argb(255, 0, 0, 0)
 
-                         // To set the Background Size of the row image in dp (optional)
-                         myRow.backgroundSize = 60
 
+
+                         when (event?.eventType) {
+                             eventType.SESSION_START -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_radio_button_checked_black_24dp)?.toBitmap()
+
+                                 myRow.imageSize = 35
+                                 myRow.backgroundSize = 50
+                             }
+                             eventType.SESSION_END -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_radio_button_unchecked_black_24dp)?.toBitmap()
+
+                                 myRow.imageSize = 35
+                                 myRow.backgroundSize = 50
+                             }
+                             eventType.INTERRUPTION_START -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_arrow_forward_black_24dp)?.toBitmap()
+
+                                 myRow.imageSize = 20
+                                 myRow.backgroundSize = 25
+
+                                 if (event.additionalProps.containsKey("switchedTo")) myRow.description = myRow.description + "\n(" + event.additionalProps.get("switchedTo") +")"
+
+                                 if (event.additionalProps.get("receivedCall") == "true") {
+                                     val comRow = TimelineRow(0)
+                                     comRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_call_black_24dp)?.toBitmap()
+                                     comRow.imageSize = 10
+                                     comRow.backgroundSize = 12
+                                     comRow.title = "Call Received"
+                                     timelineRowsList.add(comRow)
+                                 }
+                                 if (event.additionalProps.get("receivedMessage") == "true") {
+                                     val comRow = TimelineRow(0)
+                                     comRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_message_black_24dp)?.toBitmap()
+                                     comRow.imageSize = 10
+                                     comRow.backgroundSize = 12
+                                     comRow.title = "Message Received"
+                                     timelineRowsList.add(comRow)
+                                 }
+
+                             }
+                             eventType.INTERRUPTION_END -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_arrow_back_black_24dp)?.toBitmap()
+                                 myRow.imageSize = 20
+                                 myRow.backgroundSize = 25
+                             }
+                             eventType.ESM_SENT -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_poll_black_24dp)?.toBitmap()
+                                 myRow.imageSize = 20
+                                 myRow.backgroundSize = 25
+                             }
+                             eventType.ESM_ANSWER -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.poll_received)?.toBitmap()
+                                 myRow.imageSize = 20
+                                 myRow.backgroundSize = 25
+
+                             }
+                             eventType.ESM_EXPIRED -> {
+                                 myRow.image = AppCompatResources.getDrawable(context, R.drawable.poll_timedout)?.toBitmap()
+                                 myRow.imageSize = 20
+                                 myRow.backgroundSize = 25
+
+                             }
+
+                             eventType.MOVEMENT -> {
+
+                                 when (event?.eventValue) {
+                                     eventValue.WALKING -> {
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_directions_walk_black_24dp)?.toBitmap()
+                                     }
+                                     eventValue.RUNNING -> {
+                                         myRow.image = AppCompatResources.getDrawable(context,  R.drawable.ic_directions_run_black_24dp)?.toBitmap()
+                                     }
+                                     eventValue.STILL -> {
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_airline_seat_legroom_normal_black_24dp)?.toBitmap()
+
+                                     }
+                                     eventValue.IN_VEHICLE -> {
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_directions_car_black_24dp)?.toBitmap()
+                                     }
+                                     eventValue.BICYCLE -> {
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_on_bicycle)?.toBitmap()
+                                     }
+                                 }
+
+                                 myRow.imageSize = 20
+                                 myRow.backgroundSize = 25
+
+                             }
+
+
+
+
+                         }
+
+                         myRow.backgroundColor = Color.argb(255, 47, 133, 76)
                          // To set row Date text color (optional)
                          myRow.dateColor = Color.argb(255, 0, 0, 0)
 
-                         // To set row Title text color (optional)
+                                 // To set row Title text color (optional)
                          myRow.titleColor = Color.argb(255, 0, 0, 0)
 
-                         // To set row Description text color (optional)
+                             // To set row Description text color (optional)
                          myRow.descriptionColor = Color.argb(255, 0, 0, 0)
+
 
                          // Add the new row to the list
                          timelineRowsList.add(myRow)

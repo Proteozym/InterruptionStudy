@@ -157,9 +157,9 @@ class InterruptionStudyService : Service() {
                 Log.d("Ö", data!!.getAsString("package_name"))
                 var packName = data!!.getAsString("package_name")
                 if (packName == "com.android.calculator2") { //de.lmu.js.interruptionesm
-                    if (SessionState.sessionId == 0) {
+                    if (SessionState.sessionStopped) {
                         startSession()
-                        generateESM()
+                        //generateESM()
                         Log.d("Ö Session", "Started")
                     } else {
                         if (SessionState.interruptState) stopInterruption(); Log.d(
@@ -172,7 +172,7 @@ class InterruptionStudyService : Service() {
                 }
 
                 else {
-                    if (SessionState.sessionId != 0) {
+                    if (!SessionState.sessionStopped) {
                         if (!SessionState.interruptState) {
                             //Look for trigger
                             if(packName == "com.android.systemui")  {
@@ -186,8 +186,9 @@ class InterruptionStudyService : Service() {
                             if (Duration.between(
                                     SessionState.interruptTmstmp,
                                     LocalDateTime.now()
-                                ).seconds > 20 //600
+                                ).seconds > 100 //600
                             ) {
+                                Log.d("Ö", "Time Out")
                                 stopInterruption()
                                 stopSession()
                                 stopTracking()
@@ -248,7 +249,7 @@ class InterruptionStudyService : Service() {
 
     private fun handleScreenInterruption(trigger: String) {
         Log.d("Ö", "Locked - " + trigger)
-        if (SessionState.sessionId != 0) {
+        if (!SessionState.sessionStopped) {
             // TODO : IS SCREEN OFF - SLEEP? APPEARS SO YES
             if (!SessionState.interruptState) {
                 if (trigger == "on") {
@@ -269,7 +270,6 @@ class InterruptionStudyService : Service() {
 
     private fun handleUserActivity(type: Int, confidence: Int) {
         var label = getString(de.lmu.js.interruptionesm.R.string.activity_unknown)
-        var icon = de.lmu.js.interruptionesm.R.drawable.ic_still
 
         when (type) {
             DetectedActivity.IN_VEHICLE -> {
@@ -282,7 +282,6 @@ class InterruptionStudyService : Service() {
                         userKey,
                         mapOf("Confidence" to confidence.toString())
                     )
-                    icon = de.lmu.js.interruptionesm.R.drawable.ic_driving
                 }
             }
             DetectedActivity.ON_BICYCLE -> {
@@ -291,11 +290,10 @@ class InterruptionStudyService : Service() {
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.ON_BICYCLE, confidence))
                     DatabaseRef.pushDB(
                         eventType.MOVEMENT,
-                        eventValue.BYCICLE,
+                        eventValue.BICYCLE,
                         userKey,
                         mapOf("Confidence" to confidence.toString())
                     )
-                    icon = de.lmu.js.interruptionesm.R.drawable.ic_on_bicycle
                 }
             }
             DetectedActivity.ON_FOOT -> {
@@ -304,7 +302,6 @@ class InterruptionStudyService : Service() {
 
                 label = getString(de.lmu.js.interruptionesm.R.string.activity_on_foot)
                 //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_FOOT, LocalDateTime.now(), confidence))
-                icon = de.lmu.js.interruptionesm.R.drawable.ic_walking
             }
             DetectedActivity.RUNNING -> {
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.RUNNING) {
@@ -316,7 +313,6 @@ class InterruptionStudyService : Service() {
                         userKey,
                         mapOf("Confidence" to confidence.toString())
                     )
-                    icon = de.lmu.js.interruptionesm.R.drawable.ic_running
                 }
             }
             DetectedActivity.STILL -> {
@@ -331,30 +327,21 @@ class InterruptionStudyService : Service() {
                     )
                 }
             }
-            DetectedActivity.TILTING -> {
-
-                //DO WE NEED THIS?
-
-                label = getString(de.lmu.js.interruptionesm.R.string.activity_tilting)
-                //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_BICYCLE, LocalDateTime.now(), confidence))
-                icon = de.lmu.js.interruptionesm.R.drawable.ic_tilting
-            }
             DetectedActivity.WALKING -> {
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.WALKING) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_walking)
-                    //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.WALKING, LocalDateTime.now(), confidence))
+                    SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.WALKING, confidence))
                     DatabaseRef.pushDB(
                         eventType.MOVEMENT,
                         eventValue.WALKING,
                         userKey,
                         mapOf("Confidence" to confidence.toString())
                     )
-                    icon = de.lmu.js.interruptionesm.R.drawable.ic_walking
                 }
             }
             DetectedActivity.UNKNOWN -> {
                 label = getString(de.lmu.js.interruptionesm.R.string.activity_unknown)
-                //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.UNKNOWN, LocalDateTime.now(), confidence))
+                SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.NONE, confidence))
                 DatabaseRef.pushDB(eventType.MOVEMENT, eventValue.NONE, userKey, mapOf("Confidence" to confidence.toString()))
             }
         }
@@ -396,7 +383,8 @@ class InterruptionStudyService : Service() {
 
     private fun startSession() {
         Log.d("Ö ", "In startSess")
-        if (SessionState.sessionId != 0) return;
+        if (!SessionState.sessionStopped) return;
+        SessionState.sessionStopped = false
         Log.d("Ö ", "In startSessY")
         SessionState.sessionId = LocalTime.now().hashCode();
         Log.d("Ö SessionID", SessionState.sessionId.toString())
@@ -419,23 +407,25 @@ class InterruptionStudyService : Service() {
     }
 
     private fun stopSession() {
-        if (SessionState.sessionId == 0) return;
+        if (SessionState.sessionStopped) return;
         DatabaseRef.pushDB(eventType.SESSION_END, eventValue.NONE, userKey)
+        Log.d("Ö", "Generate ESM")
         generateESM()
 
         //Reset Session
-        SessionState.sessionId = 0
+        SessionState.sessionStopped = true
         SessionState.interruptState = false;
         SessionState.mvmntModalityRecord = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
         SessionState.esmCounter = 0
-
+        Log.d("Ö", "Pre Unreg")
         unregisterReceiver(comReceiver!!)
         unregisterReceiver(activityReceiver!!)
         unregisterReceiver(sessionTimeoutRec!!)
         stopService(Intent(this, TrackerWakelock::class.java))
+        Log.d("Ö", "Post Unreg")
     }
 
-    public fun generateESM() {
+    fun generateESM() {
         try {
             var factory = ESMFactory();
             var questionCounter = 0
@@ -451,10 +441,11 @@ class InterruptionStudyService : Service() {
                     questionCounter++
                 }
             }
+            Log.d("Ö", "In")
             //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
             SessionState.esmCounter = questionCounter
 
-          /*  var esmFreetext = ESM_Freetext();
+            var esmFreetext = ESM_Freetext();
             esmFreetext.setTitle("What is on your mind?")
                 .setSubmitButton("Next")
                 .setInstructions("Tell us how you feel");
@@ -470,7 +461,7 @@ class InterruptionStudyService : Service() {
             factory.addESM(esmFreetext);
             factory.addESM(esmRadio);
 
-            //Queue them*/
+            //Queue them
             ESM.queueESM(this, factory.build()); } catch (e: JSONException) { Log.e("ESM ERROR", e.toString()) }
 
             DatabaseRef.pushDB(eventType.ESM_SENT, eventValue.NONE, userKey)

@@ -16,7 +16,7 @@ class SessionState : Application() {
     companion object {
 
         lateinit  var appContext: Context;
-
+        var sessionStopped: Boolean = true
         var sessionId: Int = 0
         var interruptState: Boolean = false;
         lateinit var interruptTmstmp: org.threeten.bp.LocalDateTime

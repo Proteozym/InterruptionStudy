@@ -1,7 +1,5 @@
 package de.lmu.js.interruptionesm
 import com.google.firebase.Timestamp
-import org.threeten.bp.LocalDateTime
-
 
 data class UserEvent(
     val eventType: eventType? = null,
@@ -13,12 +11,11 @@ data class UserEvent(
 )
 
 enum class eventType {
-    SESSION_START, SESSION_END, INTERRUPTION_START, INTERRUPTION_END, MOVEMENT, COMMUNICATION, ESM_SENT, ESM_ANSWER, ESM_EXPIRED, NONE
+    SESSION_START, SESSION_END, INTERRUPTION_START, INTERRUPTION_END, MOVEMENT, ESM_SENT, ESM_ANSWER, ESM_EXPIRED, NONE
 }
 
 enum class eventValue {
     SCREEN_LOCK, SCREEN_OFF, APP_SWITCH,
-    WALKING, RUNNING, STILL, IN_VEHICLE, BYCICLE,
-    CALL, SMS, NOTIFICATION,
+    WALKING, RUNNING, STILL, IN_VEHICLE, BICYCLE,
     NONE
 }
