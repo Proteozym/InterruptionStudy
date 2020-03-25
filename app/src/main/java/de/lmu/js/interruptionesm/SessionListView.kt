@@ -66,13 +66,11 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
         navView.setNavigationItemSelectedListener(this)
 
         //LIST
-        //TODO read DB
 
         if (!isNullOrEmpty(userKey)) {
             mMainList = findViewById(R.id.main_list)
 
-
-            val query = dbInstance!!.collection("UserEvent").whereEqualTo("userKey", userKey).whereEqualTo("eventType", "SESSION_START")//.orderBy("productName", Query.Direction.ASCENDING)
+            val query = dbInstance!!.collection("UserEvent").whereEqualTo("userKey", userKey).whereEqualTo("eventType", "SESSION_START").orderBy("timestamp", Query.Direction.DESCENDING)
 
             val options = FirestoreRecyclerOptions.Builder<UserEvent>().setQuery(query, UserEvent::class.java).build()
 
@@ -91,11 +89,7 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
                 myIntent.putExtras(bundle)
                 startActivityForResult(myIntent, 0)
             }
-
-
         }
-
-
     }
     override fun onStart() {
         super.onStart()
@@ -113,20 +107,20 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
     //TimelineActivity::class.java
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
         when (item.itemId) {
+
             R.id.nav_home -> {
                 val myIntent = Intent(this, MainActivity::class.java)
+                startActivityForResult(myIntent, 0)
+            }
+            R.id.nav_profile -> {
+                //setContentView(R.layout.activity_timeline)
+                val myIntent = Intent(this, SessionListView::class.java)
                 startActivityForResult(myIntent, 0)
             }
         }
         drawerLayout.closeDrawer(GravityCompat.START)
         return true
     }
-
-
-
-
-
-
 
 }
 

@@ -128,30 +128,40 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
                                  myRow.imageSize = 20
                                  myRow.backgroundSize = 25
 
-                                 if (event.additionalProps.containsKey("switchedTo")) myRow.description = myRow.description + "\n(" + event.additionalProps.get("switchedTo") +")"
+                             }
+                             eventType.NOTIFICATION -> {
 
-                                 if (event.additionalProps.get("receivedCall") == "true") {
-                                     val comRow = TimelineRow(0)
-                                     comRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_call_black_24dp)?.toBitmap()
-                                     comRow.imageSize = 10
-                                     comRow.backgroundSize = 12
-                                     comRow.title = "Call Received"
-                                     timelineRowsList.add(comRow)
-                                 }
-                                 if (event.additionalProps.get("receivedMessage") == "true") {
-                                     val comRow = TimelineRow(0)
-                                     comRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_message_black_24dp)?.toBitmap()
-                                     comRow.imageSize = 10
-                                     comRow.backgroundSize = 12
-                                     comRow.title = "Message Received"
-                                     timelineRowsList.add(comRow)
+                                 when (event?.eventValue) {
+                                     eventValue.CALL -> {
+
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_call_black_24dp)?.toBitmap()
+                                         myRow.imageSize = 20
+                                         myRow.backgroundSize = 25
+
+                                     }
+                                     eventValue.SMS -> {
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_message_black_24dp)?.toBitmap()
+                                         myRow.imageSize = 20
+                                         myRow.backgroundSize = 25
+                                     }
+                                     eventValue.PUSH -> {
+                                         myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_notifications_black_24dp)?.toBitmap()
+                                         myRow.imageSize = 20
+                                         myRow.backgroundSize = 25
+                                         if (event.additionalProps.containsKey("app")) myRow.description = "\n(" + event.additionalProps.get("app")?.substringAfterLast(".") +")"
+                                     }
                                  }
 
                              }
+
                              eventType.INTERRUPTION_END -> {
                                  myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_arrow_back_black_24dp)?.toBitmap()
                                  myRow.imageSize = 20
                                  myRow.backgroundSize = 25
+
+                                 if (event.additionalProps.containsKey("switchedTo")) myRow.description = "\n(" + event.additionalProps.get("switchedTo") +")"
+
+
                              }
                              eventType.ESM_SENT -> {
                                  myRow.image = AppCompatResources.getDrawable(context, R.drawable.ic_poll_black_24dp)?.toBitmap()
@@ -164,7 +174,7 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
                                  myRow.backgroundSize = 25
 
                              }
-                             eventType.ESM_EXPIRED -> {
+                             eventType.ESM_DISMISSED -> {
                                  myRow.image = AppCompatResources.getDrawable(context, R.drawable.poll_timedout)?.toBitmap()
                                  myRow.imageSize = 20
                                  myRow.backgroundSize = 25
@@ -239,6 +249,11 @@ class TimelineActivity: AppCompatActivity(), NavigationView.OnNavigationItemSele
          when (item.itemId) {
              R.id.nav_home -> {
                  val myIntent = Intent(this, MainActivity::class.java)
+                 startActivityForResult(myIntent, 0)
+             }
+             R.id.nav_profile -> {
+                 //setContentView(R.layout.activity_timeline)
+                 val myIntent = Intent(this, SessionListView::class.java)
                  startActivityForResult(myIntent, 0)
              }
          }

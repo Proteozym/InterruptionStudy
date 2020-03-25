@@ -22,6 +22,7 @@ class SessionState : Application() {
         lateinit var interruptTmstmp: org.threeten.bp.LocalDateTime
         var mvmntModalityRecord: MutableList<MovementRecord> = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
         var esmCounter: Int = 0
+        var esmWasDismissed: Boolean = false
 
     }
 

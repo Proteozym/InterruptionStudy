@@ -14,6 +14,7 @@ import android.util.Log
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.annotation.Nullable
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
@@ -24,7 +25,11 @@ import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.*
 import com.aware.ui.esms.*
 import com.google.android.gms.location.DetectedActivity
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.core.FirestoreClient
 import com.jakewharton.threetenabp.AndroidThreeTen
+import de.lmu.js.interruptionesm.DatabaseRef.pushDBDaily
 import de.lmu.js.interruptionesm.SessionState.Companion.mvmntModalityRecord
 import org.json.JSONException
 import org.threeten.bp.Duration
@@ -39,11 +44,9 @@ class InterruptionStudyService : Service() {
     var sessionTimeoutRec: BroadcastReceiver? = null
     var esmReceiver: ESMReceiver? = ESMReceiver()
     private var comReceiver: BroadcastReceiver? = null
-    private var receivedMessage: Boolean = false
-    private var receivedCall: Boolean = false
     //IS THIS SAVE??
     lateinit var userKey: String
-
+    var appSwitchList = mutableListOf<String>()
 
     @Nullable
     override fun onBind(intent: Intent?): IBinder? {
@@ -51,6 +54,9 @@ class InterruptionStudyService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
+
+// ...
 
         userKey = Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID)
 
@@ -73,13 +79,13 @@ class InterruptionStudyService : Service() {
         comReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 if (intent.action.equals("android.provider.Telephony.SMS_RECEIVED")) {
-                    receivedMessage = true;
+                    DatabaseRef.pushDB(eventType.NOTIFICATION, eventValue.CALL, userKey)
                 }
                 if (intent.action.equals("android.intent.action.PHONE_STATE")) {
                     var state = intent.getStringExtra(TelephonyManager.EXTRA_STATE);
-                    receivedCall = true;
+                    DatabaseRef.pushDB(eventType.NOTIFICATION, eventValue.SMS, userKey)
                 }
-                Log.d("TTT", intent.toString())/*
+                Log.d("Ö TTT", intent.toString())/*
 
                 Log.d("TTT", state)
                 if (state.equals(TelephonyManager.EXTRA_STATE_RINGING)) {
@@ -91,16 +97,18 @@ class InterruptionStudyService : Service() {
         sessionTimeoutRec = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 Log.d("WakeLock", "OUT")
-                stopInterruption()
-                stopSession()
-                stopTracking()
+                if (SessionState.interruptState) {
+                    stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
+                    stopSession()
+                    stopTracking()
+                }
             }
         }
 
 
         AndroidThreeTen.init(this);
 
-        Aware.startAWARE(this)
+
         Aware.startPlugins(this)
         Aware.startScreen(this)
         Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, false)
@@ -154,18 +162,26 @@ class InterruptionStudyService : Service() {
             }
 
             override fun onForeground(data: ContentValues?) {
-                Log.d("Ö", data!!.getAsString("package_name"))
+                Log.d("Ö", data.toString())
+                Log.d("Ö package name", data!!.getAsString("package_name"))
+                Log.d("Ö package name", data!!.getAsString("application_name"))
                 var packName = data!!.getAsString("package_name")
-                if (packName == "com.android.calculator2") { //de.lmu.js.interruptionesm
+                var appName = data!!.getAsString("application_name")
+                pushDBDaily(packName, userKey)
+
+                if (packName == "com.android.calculator2" || packName == "com.duolingo") { //de.lmu.js.interruptionesm
                     if (SessionState.sessionStopped) {
                         startSession()
                         //generateESM()
                         Log.d("Ö Session", "Started")
                     } else {
-                        if (SessionState.interruptState) stopInterruption(); Log.d(
-                            "Ö Interruption",
-                            "Stopped"
-                        )
+                        if (SessionState.interruptState) {
+                            stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
+                            Log.d(
+                                "Ö Interruption",
+                                "Stopped"
+                            )
+                        }
 
                     }
 
@@ -173,30 +189,30 @@ class InterruptionStudyService : Service() {
 
                 else {
                     if (!SessionState.sessionStopped) {
+                        Log.d("Ö NO", "IIN")
+
+                        //if(!packName.equals("com.google.android.apps.nexuslauncher")) appSwitchList.add(appName)
+                        Log.d("Ö NO", appSwitchList.toString())
                         if (!SessionState.interruptState) {
-                            //Look for trigger
-                            if(packName == "com.android.systemui")  {
-                                //Do we want to handle this differently?
-                                startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString(), "switchedTo" to packName))
-                            }
-                            else {
-                                startInterruption(eventValue.APP_SWITCH, mapOf("receivedCall" to receivedCall.toString(), "receivedMessage" to receivedMessage.toString(), "switchedTo" to packName))
-                            }
+                            startInterruption(eventValue.APP_SWITCH)
+                            appSwitchList.add(appName)
                         } else {
-                            if (Duration.between(
+                            appSwitchList.add(appName)
+                           /* if (Duration.between(
                                     SessionState.interruptTmstmp,
                                     LocalDateTime.now()
-                                ).seconds > 100 //600
+                                ).seconds > 25 //600
                             ) {
                                 Log.d("Ö", "Time Out")
-                                stopInterruption()
+                                stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
                                 stopSession()
                                 stopTracking()
                                 Log.d("Ö Session", "Stopped")
                                 Log.d("Ö Interruption", "Stopped")
                             }
-                        }
+                        */}
                     }
+                    Log.d("Ö ss", appSwitchList.joinToString (  ))
                 }
 
 
@@ -253,6 +269,7 @@ class InterruptionStudyService : Service() {
             // TODO : IS SCREEN OFF - SLEEP? APPEARS SO YES
             if (!SessionState.interruptState) {
                 if (trigger == "on") {
+
                     stopInterruption()
                     return
                 }
@@ -270,9 +287,11 @@ class InterruptionStudyService : Service() {
 
     private fun handleUserActivity(type: Int, confidence: Int) {
         var label = getString(de.lmu.js.interruptionesm.R.string.activity_unknown)
-
+        Log.d("Ö Movement", "IN")
         when (type) {
+
             DetectedActivity.IN_VEHICLE -> {
+                Log.d("Ö Movement", "IN_VEHICLE")
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.IN_VEHICLE) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_in_vehicle)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.IN_VEHICLE, confidence))
@@ -285,6 +304,7 @@ class InterruptionStudyService : Service() {
                 }
             }
             DetectedActivity.ON_BICYCLE -> {
+                Log.d("Ö Movement", "ON_BICYCLE")
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.ON_BICYCLE) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_on_bicycle)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.ON_BICYCLE, confidence))
@@ -297,13 +317,14 @@ class InterruptionStudyService : Service() {
                 }
             }
             DetectedActivity.ON_FOOT -> {
-
+                Log.d("Ö Movement", "ON_FOOT")
                 //DO WE NEED THIS?
 
                 label = getString(de.lmu.js.interruptionesm.R.string.activity_on_foot)
                 //SessionState.mvmntModality.add(Movement_Object(Movement_Mod.ON_FOOT, LocalDateTime.now(), confidence))
             }
             DetectedActivity.RUNNING -> {
+                Log.d("Ö Movement", "RUNNING")
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.RUNNING) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_running)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.RUNNING, confidence))
@@ -316,6 +337,7 @@ class InterruptionStudyService : Service() {
                 }
             }
             DetectedActivity.STILL -> {
+                Log.d("Ö Movement", "STILL")
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.STILL) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_still)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.STILL, confidence))
@@ -328,6 +350,7 @@ class InterruptionStudyService : Service() {
                 }
             }
             DetectedActivity.WALKING -> {
+                Log.d("Ö Movement", "WALKING")
                 if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.WALKING) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_walking)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.WALKING, confidence))
@@ -340,6 +363,7 @@ class InterruptionStudyService : Service() {
                 }
             }
             DetectedActivity.UNKNOWN -> {
+                Log.d("Ö Movement", "UNKNOWN")
                 label = getString(de.lmu.js.interruptionesm.R.string.activity_unknown)
                 SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.NONE, confidence))
                 DatabaseRef.pushDB(eventType.MOVEMENT, eventValue.NONE, userKey, mapOf("Confidence" to confidence.toString()))
@@ -370,6 +394,8 @@ class InterruptionStudyService : Service() {
         Log.d("Ö", "Started Tracking")
         val intent = Intent(this, BackgroundDetectedActivitiesService::class.java)
         startService(intent)
+        val intentNotification = Intent(this, NotificationLister::class.java)
+        startService(intentNotification)
 
     }
 
@@ -378,6 +404,8 @@ class InterruptionStudyService : Service() {
         //this@MainActivity
         val intent = Intent(this, BackgroundDetectedActivitiesService::class.java)
         stopService(intent)
+        val intentNotification = Intent(this, NotificationLister::class.java)
+        startService(intentNotification)
     }
 
 
@@ -399,10 +427,8 @@ class InterruptionStudyService : Service() {
 
         DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
         //startService(Intent(this, AppTrackerService::class.java))
-        receivedMessage = false;
-        receivedCall = false;
 
-        registerReceiver(sessionTimeoutRec!!, IntentFilter("SESSION_TIMED_OUT"))
+
 
     }
 
@@ -416,12 +442,12 @@ class InterruptionStudyService : Service() {
         SessionState.sessionStopped = true
         SessionState.interruptState = false;
         SessionState.mvmntModalityRecord = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
-        SessionState.esmCounter = 0
+
         Log.d("Ö", "Pre Unreg")
         unregisterReceiver(comReceiver!!)
         unregisterReceiver(activityReceiver!!)
         unregisterReceiver(sessionTimeoutRec!!)
-        stopService(Intent(this, TrackerWakelock::class.java))
+       // stopService(Intent(this, TrackerWakelock::class.java))
         Log.d("Ö", "Post Unreg")
     }
 
@@ -430,36 +456,39 @@ class InterruptionStudyService : Service() {
             var factory = ESMFactory();
             var questionCounter = 0
             for (mov in mvmntModalityRecord) {
-                if (mov.confidence < 90) {
+                Log.d("Ö ESM", "movement conf: " + mov.confidence + "movement type: " + mov.movement)
+                if (mov.confidence <= 100) {
 
-                    var quickAnswer = ESM_QuickAnswer()
-                    quickAnswer.addQuickAnswer("Yes")
-                        .addQuickAnswer("No")
-                        .setInstructions("During your latest language session, were you " + mov.movement)
-                    factory.addESM(quickAnswer)
+                    var movAnswer = ESM_Radio()
+                    movAnswer.addRadio("Yes")
+                        .addRadio("No")
+                        .setInstructions("During your latest learning session, we detected that started the following Activity:" + mov.movement +"\n Is that correct?")
+                        .setSubmitButton("OK");
+                    factory.addESM(movAnswer)
 
                     questionCounter++
                 }
             }
             Log.d("Ö", "In")
             //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
-            SessionState.esmCounter = questionCounter
+            SessionState.esmCounter = 2 + questionCounter
 
-            var esmFreetext = ESM_Freetext();
-            esmFreetext.setTitle("What is on your mind?")
-                .setSubmitButton("Next")
-                .setInstructions("Tell us how you feel");
 
-            var esmRadio = ESM_Radio();
-            esmRadio.addRadio("Bored")
-                .addRadio("Fantastic")
-                .setTitle("Are you...")
-                .setInstructions("Pick one!")
+            var socialRadio = ESM_Radio();
+            socialRadio.addRadio("Yes")
+                .addRadio("No")
+                .setInstructions("Were you alone during your latest session?")
                 .setSubmitButton("OK");
+            factory.addESM(socialRadio);
 
-            //add them to the factory
-            factory.addESM(esmFreetext);
-            factory.addESM(esmRadio);
+            var locationRadio = ESM_Radio();
+            locationRadio.addRadio("Work")
+                .addRadio("Home")
+                .addRadio("Commute")
+                .setInstructions("Were were you during your latest session?")
+                .setSubmitButton("OK");
+            factory.addESM(locationRadio);
+            // Do we need to check for notification???
 
             //Queue them
             ESM.queueESM(this, factory.build()); } catch (e: JSONException) { Log.e("ESM ERROR", e.toString()) }
@@ -469,19 +498,23 @@ class InterruptionStudyService : Service() {
 
     private fun startInterruption(eVal: eventValue, addProp: Map<String, String> = mapOf()) {
         if (SessionState.interruptState) return
-        SessionState.interruptState = true;
+        //check if duolingo?
+        appSwitchList = mutableListOf<String>()
+        SessionState.interruptState = true
         SessionState.interruptTmstmp = LocalDateTime.now()
         DatabaseRef.pushDB(eventType.INTERRUPTION_START, eVal, userKey, addProp)
+        var wakeFilter = IntentFilter();
+        wakeFilter.addAction("SESSION_TIMED_OUT")
+        registerReceiver(sessionTimeoutRec, wakeFilter)
         startService(Intent(this, TrackerWakelock::class.java))
     }
 
-    private fun stopInterruption() {
+    private fun stopInterruption(addProp: Map<String, String> = mapOf()) {
         if (!SessionState.interruptState) return
-
-        DatabaseRef.pushDB(eventType.INTERRUPTION_END, eventValue.NONE, userKey)
+Log.d("Ö this", addProp.toString())
+        DatabaseRef.pushDB(eventType.INTERRUPTION_END, eventValue.NONE, userKey, addProp)
         SessionState.interruptState = false;
-        receivedMessage = false;
-        receivedCall = false;
+
         stopService(Intent(this, TrackerWakelock::class.java))
     }
 
