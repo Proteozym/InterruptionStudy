@@ -2,10 +2,15 @@ package de.lmu.js.interruptionesm
 
 
 import android.Manifest
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import android.view.MenuItem
 import android.widget.Toast
@@ -38,6 +43,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     val MY_PERMISSIONS_REQUEST: Int = 1;
     var permList = mutableListOf<String>()
     var viewPermList = mutableListOf<permissionView>()
+    var accessibilityRequestReceiver: BroadcastReceiver? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -55,6 +61,26 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         // Check if user is signed in (non-null) and update UI accordingly.
         val currentUser = auth.currentUser
         //updateUI(currentUser)
+
+        accessibilityRequestReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                if (intent.action.equals("TRIGGER_ACCESSIBILITY")) {
+                    var intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+                    ContextCompat.startActivity(this@MainActivity, intent, null)
+                }
+                if (intent.action.equals("TRIGGER_PERMISSION")) {
+                    var intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                    var uri = Uri.fromParts("package", "de.lmu.js.interruptionesm", null);
+                    intent.setData(uri);
+                    ContextCompat.startActivity(this@MainActivity, intent, null)
+                }
+            }
+        }
+
+        var accessibilityRequestReceiverFilter = IntentFilter();
+        accessibilityRequestReceiverFilter.addAction("TRIGGER_ACCESSIBILITY")
+        accessibilityRequestReceiverFilter.addAction("TRIGGER_PERMISSION")
+        registerReceiver(accessibilityRequestReceiver, accessibilityRequestReceiverFilter)
 
         auth.signInAnonymously()
             .addOnCompleteListener(this) { task ->
@@ -85,20 +111,20 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             Log.d("Ö", "Phone State---------")
 // We do not have this permission. Let’s ask the user
             permList.add(Manifest.permission.READ_PHONE_STATE)
-            viewPermList.add(permissionView("Read Phone State", false))
+            viewPermList.add(permissionView("Read Phone State", false, Manifest.permission.READ_PHONE_STATE))
         }
         else {
-            viewPermList.add(permissionView("Read Phone State", true))
+            viewPermList.add(permissionView("Read Phone State", true, Manifest.permission.READ_PHONE_STATE))
         }
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)!= PackageManager.PERMISSION_GRANTED) {
             Log.d("Ö", "Receive SMS---------")
 // We do not have this permission. Let’s ask the user
             permList.add(Manifest.permission.RECEIVE_SMS)
-            viewPermList.add(permissionView("Receive SMS", false))
+            viewPermList.add(permissionView("Receive SMS", false, Manifest.permission.RECEIVE_SMS))
         }
         else {
-            viewPermList.add(permissionView("Receive SMS", true))
+            viewPermList.add(permissionView("Receive SMS", true, Manifest.permission.RECEIVE_SMS))
         }
 
        /* if(ContextCompat.checkSelfPermission(this, Manifest.permission.BIND_NOTIFICATION_LISTENER_SERVICE)!= PackageManager.PERMISSION_GRANTED) {
@@ -111,36 +137,35 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             viewPermList.add(permissionView("Notification Listener", true))
         }*/
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-
+        if (Build.VERSION.SDK_INT <= 28) {
+            Log.d("Ö", "Q")
             if(ContextCompat.checkSelfPermission(this, "com.google.android.gms.permission.ACTIVITY_RECOGNITION")!= PackageManager.PERMISSION_GRANTED) {
-
                     permList.add("com.google.android.gms.permission.ACTIVITY_RECOGNITION")
-                    viewPermList.add(permissionView("Google Activity Recognition", false))
+                    viewPermList.add(permissionView("Google Activity Recognition", false, "com.google.android.gms.permission.ACTIVITY_RECOGNITION"))
             } else {
-                viewPermList.add(permissionView("Google Activity Recognition", true))
+                viewPermList.add(permissionView("Google Activity Recognition", true, "com.google.android.gms.permission.ACTIVITY_RECOGNITION"))
             }
         }
-            else {
-                if (ContextCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.ACTIVITY_RECOGNITION
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    Log.d("Ö", "223inninsdlasd")
-                    // We do not have this permission. Let’s ask the user
-                    permList.add(Manifest.permission.ACTIVITY_RECOGNITION)
-                    viewPermList.add(permissionView("Google Activity Recognition", false))
-                } else {
-                    viewPermList.add(permissionView("Google Activity Recognition", true))
-                }
+        else {
+            if (ContextCompat.checkSelfPermission(
+                    this,
+                    Manifest.permission.ACTIVITY_RECOGNITION
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.d("Ö", "223inninsdlasd")
+                // We do not have this permission. Let’s ask the user
+                permList.add(Manifest.permission.ACTIVITY_RECOGNITION)
+                viewPermList.add(permissionView("Google Activity Recognition", false, Manifest.permission.ACTIVITY_RECOGNITION))
+            } else {
+                viewPermList.add(permissionView("Google Activity Recognition", true, Manifest.permission.ACTIVITY_RECOGNITION))
             }
+        }
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED) {
 
 // We do not have this permission. Let’s ask the user
             permList.add(Manifest.permission.ACCESS_FINE_LOCATION)
-            viewPermList.add(permissionView("Location", false))
+            viewPermList.add(permissionView("Location", false, Manifest.permission.ACCESS_FINE_LOCATION))
         }
         else {
             viewPermList.add(permissionView("Location", true))
@@ -155,7 +180,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         Aware.startAWARE(this)
 Log.d("Ö", permList.toString())
-        ActivityCompat.requestPermissions(this@MainActivity, permList.toTypedArray(), MY_PERMISSIONS_REQUEST);
+        if (permList.isNotEmpty()) ActivityCompat.requestPermissions(this@MainActivity, permList.toTypedArray(), MY_PERMISSIONS_REQUEST);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
             if (!NotificationManagerCompat.getEnabledListenerPackages(this)
@@ -175,7 +200,7 @@ Log.d("Ö", permList.toString())
 
 //Permission List View
         viewManager = LinearLayoutManager(this)
-        viewAdapter = PermissionAdapter(viewPermList, this)
+        viewAdapter = PermissionAdapter(viewPermList, this@MainActivity)
 
         recyclerView = findViewById<RecyclerView>(R.id.permission_list).apply {
 
@@ -186,6 +211,34 @@ Log.d("Ö", permList.toString())
             adapter = viewAdapter
 
         }
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int,
+                                            permissions: Array<String>, grantResults: IntArray) {
+       // when (requestCode) {
+           // MY_PERMISSIONS_REQUEST_READ_CONTACTS -> {
+                // If request is cancelled, the result arrays are empty.
+                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    // permission was granted, yay! Do the
+                    // contacts-related task you need to do.
+                    finish();
+                    overridePendingTransition(0, 0);
+                    startActivity(getIntent());
+                    overridePendingTransition(0, 0);
+                    //viewAdapter.notifyItemChanged(1)
+                } else {
+                    // permission denied, boo! Disable the
+                    // functionality that depends on this permission.
+                }
+                return
+            //}
+
+            // Add other 'when' lines to check for other
+            // permissions this app might request.
+           // else -> {
+                // Ignore all other requests.
+          //  }
+       // }
     }
 
     override fun onNavigationItemSelected(item: MenuItem): Boolean {
@@ -206,32 +259,31 @@ Log.d("Ö", permList.toString())
 
     override fun onResume() {
         super.onResume()
-        //LocalBroadcastManager.getInstance(this).registerReceiver(activityReceiver!!, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
+        var accessibilityRequestReceiverFilter = IntentFilter();
+        accessibilityRequestReceiverFilter.addAction("TRIGGER_ACCESSIBILITY")
+        accessibilityRequestReceiverFilter.addAction("TRIGGER_PERMISSION")
+        registerReceiver(accessibilityRequestReceiver, accessibilityRequestReceiverFilter)
     }
 
     override fun onPause() {
        super.onPause()
-        Log.d("Ö switch", "Is this switch?")
-        //LocalBroadcastManager.getInstance(this).unregisterReceiver(activityReceiver!!)
+        unregisterReceiver(accessibilityRequestReceiver)
     }
 
     override fun onStop() {
         super.onStop();
-
     }
 
     override fun onDestroy() {
         super.onDestroy()
-
     }
-
 
 }
 
 data class permissionView(
     val type: String = "None",
-    val isGranted: Boolean = false
-
+    val isGranted: Boolean = false,
+    var manifest: String = "None"
 )
 
 

@@ -1,38 +1,28 @@
 package de.lmu.js.interruptionesm
 
-import android.Manifest
 import android.R
 import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.graphics.Color
 import android.os.Build
 import android.os.IBinder
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
-import android.widget.Button
-import android.widget.ImageView
-import android.widget.TextView
-import android.widget.Toast
 import androidx.annotation.Nullable
 import androidx.annotation.RequiresApi
-import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
-import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.aware.*
-import com.aware.ui.esms.*
+import com.aware.ui.esms.ESMFactory
+import com.aware.ui.esms.ESM_Radio
 import com.google.android.gms.location.DetectedActivity
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.core.FirestoreClient
 import com.jakewharton.threetenabp.AndroidThreeTen
 import de.lmu.js.interruptionesm.DatabaseRef.pushDBDaily
 import de.lmu.js.interruptionesm.SessionState.Companion.mvmntModalityRecord
 import org.json.JSONException
-import org.threeten.bp.Duration
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
 
@@ -47,6 +37,7 @@ class InterruptionStudyService : Service() {
     //IS THIS SAVE??
     lateinit var userKey: String
     var appSwitchList = mutableListOf<String>()
+    val blockedAppList = mutableListOf<String>("com.touchtype.swiftkey", "com.google.android.inputmethod.latin", "com.syntellia.fleksy.keyboard", "com.gamelounge.chroomakeyboard", "com.gingersoftware.android.keyboard", "com.boloorian.android.farsikeyboard", "com.jb.gokeyboard")
 
     @Nullable
     override fun onBind(intent: Intent?): IBinder? {
@@ -105,6 +96,11 @@ class InterruptionStudyService : Service() {
             }
         }
 
+        val intent = Intent(Intent.ACTION_MAIN)
+        intent.addCategory(Intent.CATEGORY_HOME)
+        val resolveInfo: ResolveInfo =
+            packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
+        blockedAppList.add(resolveInfo.activityInfo.packageName)
 
         AndroidThreeTen.init(this);
 
@@ -188,10 +184,9 @@ class InterruptionStudyService : Service() {
                 }
 
                 else {
-                    if (!SessionState.sessionStopped) {
+                    if (!SessionState.sessionStopped && !blockedAppList.contains(packName)) {
                         Log.d("Ö NO", "IIN")
 
-                        //if(!packName.equals("com.google.android.apps.nexuslauncher")) appSwitchList.add(appName)
                         Log.d("Ö NO", appSwitchList.toString())
                         if (!SessionState.interruptState) {
                             startInterruption(eventValue.APP_SWITCH)

@@ -1,19 +1,29 @@
 package de.lmu.js.interruptionesm
 
 
+import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.ContextCompat.startActivity
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.common.reflect.Reflection.getPackageName
 
 
 class PermissionAdapter(items: MutableList<permissionView>, context: Context): RecyclerView.Adapter<PermissionAdapter.ViewHolder>() {
     var values: MutableList<permissionView>
     var cont: Context
+    val MY_PERMISSIONS_REQUEST: Int = 1;
+
     init {
         values = items
         cont = context
@@ -24,12 +34,12 @@ class PermissionAdapter(items: MutableList<permissionView>, context: Context): R
     inner class ViewHolder(var layout: View) : RecyclerView.ViewHolder(layout) {
         // each data item is just a string in this case
         var txtHeader: TextView
-        var txtFooter: TextView
+        //var txtFooter: TextView
         var icon: ImageView
 
         init {
             txtHeader = layout.findViewById<View>(R.id.firstLine) as TextView
-            txtFooter = layout.findViewById<View>(R.id.secondLine) as TextView
+            //txtFooter = layout.findViewById<View>(R.id.secondLine) as TextView
             icon = layout.findViewById<View>(R.id.icon) as ImageView
 
         }
@@ -66,9 +76,22 @@ class PermissionAdapter(items: MutableList<permissionView>, context: Context): R
         val item = values[position]
         holder.txtHeader.text = item.type
         holder.txtHeader.setOnClickListener {
-            //remove(position)
+            if (item.type.equals("Accessibility Service")) {
+                var intent = Intent("TRIGGER_ACCESSIBILITY")
+                cont.sendBroadcast(intent)
+            }
+            else {
 
+                var intent = Intent("TRIGGER_PERMISSION")
+                cont.sendBroadcast(intent)
+
+            }
         }
+     /*       if(ContextCompat.checkSelfPermission(cont, item.manifest)!= PackageManager.PERMISSION_GRANTED) {
+                ActivityCompat.requestPermissions(getActivity(cont)!!, arrayOf(item.manifest), MY_PERMISSIONS_REQUEST);
+            }*/
+
+
         if (item.isGranted) {
             holder.icon.setImageDrawable(AppCompatResources.getDrawable(cont, R.drawable.status_granted))
         }
@@ -81,6 +104,12 @@ class PermissionAdapter(items: MutableList<permissionView>, context: Context): R
     // Return the size of your dataset (invoked by the layout manager)
     override fun getItemCount(): Int {
         return values.size
+    }
+
+    fun getActivity(context: Context?): Activity? {
+        if (context == null) return null
+        if (context is Activity) return context
+        return if (context is ContextWrapper) getActivity(context.baseContext) else null
     }
 
 }

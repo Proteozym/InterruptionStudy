@@ -11,14 +11,14 @@ import android.util.Log
 class NotificationLister: NotificationListenerService() {
 
     var isDoublicateNotificationPrevention = false
-
+    val blockedAppList = mutableListOf<String>("com.google.android.apps.messaging", "android")
     override fun onBind(intent: Intent?): IBinder? {
         return super.onBind(intent)
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
 
-        if (!sbn?.packageName!!.equals("com.google.android.apps.messaging") && !SessionState.sessionStopped) {
+        if (!blockedAppList.contains(sbn?.packageName) && !SessionState.sessionStopped) {
             if (isDoublicateNotificationPrevention) {
                 isDoublicateNotificationPrevention = false
             }
