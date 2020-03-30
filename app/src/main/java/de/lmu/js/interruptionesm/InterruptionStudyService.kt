@@ -165,52 +165,58 @@ class InterruptionStudyService : Service() {
                 var appName = data!!.getAsString("application_name")
                 pushDBDaily(packName, userKey)
 
-                if (packName == "com.android.calculator2" || packName == "com.duolingo") { //de.lmu.js.interruptionesm
-                    if (SessionState.sessionStopped) {
-                        startSession()
-                        //generateESM()
-                        Log.d("Ö Session", "Started")
-                    } else {
-                        if (SessionState.interruptState) {
-                            stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
-                            Log.d(
-                                "Ö Interruption",
-                                "Stopped"
-                            )
+                //get selected app to track
+                val sharedPref = getSharedPreferences(getString(de.lmu.js.interruptionesm.R.string.preference_key), Context.MODE_PRIVATE)
+                Log.d("LÖL", sharedPref.getString("APP", "empty")!!.split("|")[0])
+                val packToTrack = sharedPref.getString("APP", "empty")!!.split("|")[0]
+                if (packToTrack.equals("empty")) {
+                    Log.e("Interruption ESM", "App to track selection not working!")
+                }
+                else {
+                    if (packName.equals(packToTrack)) { //de.lmu.js.interruptionesm
+                        if (SessionState.sessionStopped) {
+                            startSession()
+                            //generateESM()
+                            Log.d("Ö Session", "Started")
+                        } else {
+                            if (SessionState.interruptState) {
+                                stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
+                                Log.d(
+                                    "Ö Interruption",
+                                    "Stopped"
+                                )
+                            }
+
                         }
 
-                    }
+                    } else {
+                        if (!SessionState.sessionStopped && !blockedAppList.contains(packName)) {
+                            Log.d("Ö NO", "IIN")
 
-                }
-
-                else {
-                    if (!SessionState.sessionStopped && !blockedAppList.contains(packName)) {
-                        Log.d("Ö NO", "IIN")
-
-                        Log.d("Ö NO", appSwitchList.toString())
-                        if (!SessionState.interruptState) {
-                            startInterruption(eventValue.APP_SWITCH)
-                            appSwitchList.add(appName)
-                        } else {
-                            appSwitchList.add(appName)
-                           /* if (Duration.between(
-                                    SessionState.interruptTmstmp,
-                                    LocalDateTime.now()
-                                ).seconds > 25 //600
-                            ) {
-                                Log.d("Ö", "Time Out")
-                                stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
-                                stopSession()
-                                stopTracking()
-                                Log.d("Ö Session", "Stopped")
-                                Log.d("Ö Interruption", "Stopped")
+                            Log.d("Ö NO", appSwitchList.toString())
+                            if (!SessionState.interruptState) {
+                                startInterruption(eventValue.APP_SWITCH)
+                                appSwitchList.add(appName)
+                            } else {
+                                appSwitchList.add(appName)
+                                /* if (Duration.between(
+                                        SessionState.interruptTmstmp,
+                                        LocalDateTime.now()
+                                    ).seconds > 25 //600
+                                ) {
+                                    Log.d("Ö", "Time Out")
+                                    stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
+                                    stopSession()
+                                    stopTracking()
+                                    Log.d("Ö Session", "Stopped")
+                                    Log.d("Ö Interruption", "Stopped")
+                                }
+                            */
                             }
-                        */}
+                        }
+                        Log.d("Ö ss", appSwitchList.joinToString())
                     }
-                    Log.d("Ö ss", appSwitchList.joinToString (  ))
                 }
-
-
             }
         })
         startForeground()

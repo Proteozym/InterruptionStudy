@@ -2,17 +2,21 @@ package de.lmu.js.interruptionesm
 
 
 import android.Manifest
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
+import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
+import android.graphics.Point
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.MenuItem
+import android.view.View
+import android.widget.AdapterView
+import android.widget.ArrayAdapter
+import android.widget.Spinner
 import android.widget.Toast
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
@@ -27,7 +31,6 @@ import com.aware.Applications
 import com.aware.Aware
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
-import com.google.protobuf.LazyStringArrayList
 
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -45,6 +48,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     var viewPermList = mutableListOf<permissionView>()
     var accessibilityRequestReceiver: BroadcastReceiver? = null
 
+    lateinit var prefFile: String
+    lateinit var sharedPref: SharedPreferences
+    lateinit var editor: SharedPreferences.Editor
+    var checkSpinnerInit = 0
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
@@ -54,6 +62,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         drawerLayout = findViewById(R.id.drawer_layout)
         navView = findViewById(R.id.nav_view)
+
+        prefFile = getString(R.string.preference_key)
+        sharedPref = this.getSharedPreferences(
+            prefFile, Context.MODE_PRIVATE)
+        editor = sharedPref.edit();
+
 
         // Initialize Firebase Auth
         var auth = FirebaseAuth.getInstance()
@@ -211,6 +225,56 @@ Log.d("Ö", permList.toString())
             adapter = viewAdapter
 
         }
+
+        //val sharedPref = this.getPreferences(Context.MODE_PRIVATE)
+
+        var app = sharedPref.getString("APP", "empty");
+        Log.d("Ö is", app.toString())
+        var spinnerSelected = AppItem<String>("null", "null")
+        if (!app.equals("empty")) {
+            var item = app?.split("|")
+            spinnerSelected = AppItem<String>(item?.get(0)!!, item?.get(1)!!)
+            Log.d("Ö is", spinnerSelected.toString())
+        }
+
+        var appData = installedApps()
+        val spinner: Spinner = findViewById(R.id.app_spinner)
+
+        val positionAdapter = ArrayAdapter<AppItem<String>>(this, android.R.layout.simple_spinner_item, appData).also { adapter ->
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            spinner.adapter = adapter
+        }
+        // Set layout to use when the list of choices appear
+        positionAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        // Set Adapter to Spinner
+
+        spinner!!.setAdapter(positionAdapter)
+        //Read from save
+
+        Log.d("Ö in3", appData.indexOf(spinnerSelected).toString())
+        spinner!!.setSelection(positionAdapter.getPosition(spinnerSelected))
+
+        spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onNothingSelected(parent: AdapterView<*>?) {
+
+            }
+
+            override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
+                // val item = parent.getItemAtPosition(position) as EnumTextItem<Position>
+                if(++checkSpinnerInit > 1) {
+                    val item = positionAdapter.getItem(position)
+
+                    editor.putString("APP", item?.packageName + "|" + item?.text)
+
+                    editor.apply();
+
+                    var succ = editor.commit();
+                    Log.d("Ö in", succ.toString())
+                }
+            }
+        }
+
+
     }
 
     override fun onRequestPermissionsResult(requestCode: Int,
@@ -278,6 +342,22 @@ Log.d("Ö", permList.toString())
         super.onDestroy()
     }
 
+    fun installedApps(): ArrayList<AppItem<String>> {
+        val appList: ArrayList<AppItem<String>> = ArrayList()
+        val packList: List<PackageInfo> = packageManager.getInstalledPackages(0)
+        for (i in 0 until packList.size) {
+            val packInfo: PackageInfo = packList[i]
+            if ((packInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
+                val appName: String =
+                    packInfo.applicationInfo.loadLabel(packageManager).toString()
+                appList.add(AppItem(packInfo.packageName, appName))
+                Log.d("Ö Nö" + Integer.toString(i), appName)
+            }
+        }
+        return appList
+    }
+
+
 }
 
 data class permissionView(
@@ -286,4 +366,21 @@ data class permissionView(
     var manifest: String = "None"
 )
 
+
+class AppItem<T>(val packageName: String, val text: String) {
+    override fun toString(): String {
+        return text
+    }
+    fun getPackage(): String {
+        return packageName
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other == null) return false
+        if (javaClass != other.javaClass) return false
+        if (!text.equals(other.toString())) return false
+        return true
+    }
+}
 

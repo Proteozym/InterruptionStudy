@@ -8,4 +8,5 @@
     <string name="activity_tilting">Tilting</string>
     <string name="activity_walking">walking</string>
     <string name="activity_unknown">Unknown</string>
+    <string name="preference_key" >interruption_esm_pref</string>
 </resources>
