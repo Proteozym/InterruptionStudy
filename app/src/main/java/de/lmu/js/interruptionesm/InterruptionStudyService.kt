@@ -126,91 +126,6 @@ class InterruptionStudyService : AccessibilityService() {
             }
         })
 
-
-        Applications.setSensorObserver(object : Applications.AWARESensorObserver {
-            override fun onCrash(data: ContentValues?) {
-
-            }
-
-            override fun onNotification(data: ContentValues?) {
-                Log.d("New Notification", "test");
-            }
-
-            override fun onBackground(data: ContentValues?) {
-                Log.d("CHECKTHIS", data!!.getAsString("package_name"))
-            }
-
-            override fun onKeyboard(data: ContentValues?) {
-                // Log.d("Application Sensor: Keyboard", "keyboard")
-            }
-
-            override fun onTouch(data: ContentValues?) {
-
-            }
-
-            override fun onForeground(data: ContentValues?) {
-                /*
-                Log.d("Ö", data.toString())
-                Log.d("Ö package name", data!!.getAsString("package_name"))
-                Log.d("Ö package name", data!!.getAsString("application_name"))
-                var packName = data!!.getAsString("package_name")
-                var appName = data!!.getAsString("application_name")
-                pushDBDaily(packName, userKey)
-
-                //get selected app to track
-                val sharedPref = getSharedPreferences(getString(de.lmu.js.interruptionesm.R.string.preference_key), Context.MODE_PRIVATE)
-                Log.d("LÖL", sharedPref.getString("APP", "empty")!!.split("|")[0])
-                val packToTrack = sharedPref.getString("APP", "empty")!!.split("|")[0]
-                if (packToTrack.equals("empty")) {
-                    Log.e("Interruption ESM", "App to track selection not working!")
-                }
-                else {
-                    if (packName.equals(packToTrack)) { //de.lmu.js.interruptionesm
-                        if (SessionState.sessionStopped) {
-                            startSession()
-                            //generateESM()
-                            Log.d("Ö Session", "Started")
-                        } else {
-                            if (SessionState.interruptState) {
-                                stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
-                                Log.d(
-                                    "Ö Interruption",
-                                    "Stopped"
-                                )
-                            }
-
-                        }
-
-                    } else {
-                        if (!SessionState.sessionStopped && !blockedAppList.contains(packName)) {
-                            Log.d("Ö NO", "IIN")
-
-                            Log.d("Ö NO", appSwitchList.toString())
-                            if (!SessionState.interruptState) {
-                                startInterruption(eventValue.APP_SWITCH)
-                                appSwitchList.add(appName)
-                            } else {
-                                appSwitchList.add(appName)
-                                /* if (Duration.between(
-                                        SessionState.interruptTmstmp,
-                                        LocalDateTime.now()
-                                    ).seconds > 25 //600
-                                ) {
-                                    Log.d("Ö", "Time Out")
-                                    stopInterruption(mapOf("switchedTo" to appSwitchList.joinToString()))
-                                    stopSession()
-                                    stopTracking()
-                                    Log.d("Ö Session", "Stopped")
-                                    Log.d("Ö Interruption", "Stopped")
-                                }
-                            */
-                            }
-                        }
-                        Log.d("Ö ss", appSwitchList.joinToString())
-                    }
-                }
-            */}
-        })
         //startForeground()
         return START_STICKY;
         //return super.onStartCommand(intent, flags, startId)
@@ -442,7 +357,7 @@ class InterruptionStudyService : AccessibilityService() {
     private fun handleScreenInterruption(trigger: String) {
         Log.d("Ö", "Locked - " + trigger)
         if (!SessionState.sessionStopped) {
-            // TODO : IS SCREEN OFF - SLEEP? APPEARS SO YES
+
             if (!SessionState.interruptState) {
                 if (trigger == "on") {
 
@@ -643,12 +558,12 @@ class InterruptionStudyService : AccessibilityService() {
             var questionCounter = 0
             for (mov in mvmntModalityRecord) {
                 Log.d("Ö ESM", "movement conf: " + mov.confidence + "movement type: " + mov.movement)
-                if (mov.confidence >= 90 && mov.movement != MovementRecord.Movement.NONE) {
+                if (mov.confidence >= 90 && (mov.movement != MovementRecord.Movement.NONE)) {
 
                     var movAnswer = ESM_Radio()
                     movAnswer.addRadio("Yes")
                         .addRadio("No")
-                        .setInstructions("During your latest learning session, we detected the following activity performed by you:" + mov.movement.toString().split(".")[1] +"\n Is that correct?")
+                        .setInstructions("During your latest learning session, we detected the following activity performed by you:" + mov.movement.name +"\n Is that correct?")
                         .setSubmitButton("OK");
                     factory.addESM(movAnswer)
 
