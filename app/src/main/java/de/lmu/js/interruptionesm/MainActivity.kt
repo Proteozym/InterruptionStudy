@@ -29,6 +29,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aware.Applications
 import com.aware.Aware
+import com.aware.Aware_Preferences
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
 
@@ -192,7 +193,19 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             viewPermList.add(permissionView("Accessibility Service", true))
         }
 
+
+
+
+        Aware.startScreen(this)
+        //Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, true)
+
+        // Register for checking application use
+        //ware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
+        //Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
+        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
         Aware.startAWARE(this)
+
+
 Log.d("Ö", permList.toString())
         if (permList.isNotEmpty()) ActivityCompat.requestPermissions(this@MainActivity, permList.toTypedArray(), MY_PERMISSIONS_REQUEST);
 
@@ -210,7 +223,9 @@ Log.d("Ö", permList.toString())
             }
         }
 
-        startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
+
+        //ContextCompat.startForegroundService(this@MainActivity, Intent(this@MainActivity, InterruptionStudyService::class.java))
+        //startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
 
 //Permission List View
         viewManager = LinearLayoutManager(this)
@@ -274,6 +289,17 @@ Log.d("Ö", permList.toString())
             }
         }
 
+        Intent(this, InterruptionStudyService::class.java).also {
+            it.action = Actions.START.name
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                Log.d("Ö", "Starting the service in >=26 Mode")
+                startForegroundService(it)
+                return
+            }
+            Log.d("Ö", "Starting the service in < 26 Mode")
+            startService(it)
+        }
+
 
     }
 
@@ -323,6 +349,7 @@ Log.d("Ö", permList.toString())
 
     override fun onResume() {
         super.onResume()
+        startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
         var accessibilityRequestReceiverFilter = IntentFilter();
         accessibilityRequestReceiverFilter.addAction("TRIGGER_ACCESSIBILITY")
         accessibilityRequestReceiverFilter.addAction("TRIGGER_PERMISSION")
@@ -339,6 +366,7 @@ Log.d("Ö", permList.toString())
     }
 
     override fun onDestroy() {
+        //stopService(Intent(this@MainActivity, InterruptionStudyService::class.java))
         super.onDestroy()
     }
 

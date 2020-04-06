@@ -32,7 +32,7 @@ class DetectedActivitiesIntentService : IntentService(TAG) {
         val intent = Intent(Constants.BROADCAST_DETECTED_ACTIVITY)
         intent.putExtra("type", activity.type)
         intent.putExtra("confidence", activity.confidence)
-        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
+        sendBroadcast(intent)
     }
 
     companion object {

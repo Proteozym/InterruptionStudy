@@ -74,4 +74,10 @@ dependencies {
     implementation 'com.google.android.material:material:1.0.0'
     implementation 'com.google.firebase:firebase-auth:19.2.0'
 
+
+    implementation 'com.jaredrummler:android-device-names:1.1.8'
+
+    implementation 'com.github.kittinunf.fuel:fuel:2.1.0'
+    implementation 'com.github.kittinunf.fuel:fuel-android:2.1.0'
+
 }

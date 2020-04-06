@@ -5,9 +5,12 @@
     <uses-permission android:maxSdkVersion="28" android:name="com.google.android.gms.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE"/>
+    <uses-permission android:name="android.permission.INTERNET"/>
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.READ_PHONE_STATE" tools:remove="android:maxSdkVersion"/>
     <uses-permission android:name="android.permission.RECEIVE_SMS" tools:remove="android:maxSdkVersion"/>
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
     <application
         android:name=".SessionState"
@@ -27,26 +30,44 @@
         </activity>
         <activity android:name=".TimelineActivity" android:theme="@style/AppTheme.NoActionBar"></activity>
         <activity android:name=".SessionListView" android:theme="@style/AppTheme.NoActionBar"></activity>
-
-
         <!-- Service that provides activity recognition data. Setting the android:exported attribute
          to "false" stops other apps from starting this service, even when using an explicit
          intent. -->
         <service
             android:name=".DetectedActivitiesIntentService"
-            android:exported="false" />
+            android:exported="false"
+            android:stopWithTask="false"/>
         <service android:name=".BackgroundDetectedActivitiesService"></service>
 
-        <service android:name=".InterruptionStudyService" android:exported="false" />
-        <service android:name=".AppTrackerService" android:exported="false" />
-        <service android:name=".TrackerWakelock" android:exported="false" />
+        <service android:name=".InterruptionStudyService"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
+            android:enabled="true"
+            android:exported="false"
+            android:stopWithTask="false">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <!--<meta-data android:name="android.accessibilityservice" android:resource="@xml/accessibilityservice"></meta-data>-->
+        </service>
+        <service android:name=".AppTrackerService" android:exported="false"
+            android:stopWithTask="false"/>
+        <service android:name=".TrackerWakelock" android:exported="false"
+            android:stopWithTask="false"/>
 
         <service android:name=".NotificationLister"
             android:label="NotificationListener"
-            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"
+            android:stopWithTask="false"
+            >
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService" />
             </intent-filter>
         </service>
+
+        <receiver android:enabled="true" android:name=".StartReceiver">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED"/>
+            </intent-filter>
+        </receiver>
     </application>
 </manifest>
