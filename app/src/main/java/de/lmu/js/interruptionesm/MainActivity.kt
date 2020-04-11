@@ -6,7 +6,6 @@ import android.content.*
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
-import android.graphics.Point
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -288,6 +287,8 @@ Log.d("Ö", permList.toString())
                 }
             }
         }
+        var dialog = BatteryOptimizationUtil.getBatteryOptimizationDialog(this);
+        if (dialog != null) dialog.show();
 
         Intent(this, InterruptionStudyService::class.java).also {
             it.action = Actions.START.name
@@ -386,6 +387,8 @@ Log.d("Ö", permList.toString())
     }
 
 
+
+
 }
 
 data class permissionView(
@@ -410,5 +413,9 @@ class AppItem<T>(val packageName: String, val text: String) {
         if (!text.equals(other.toString())) return false
         return true
     }
+
+
 }
+
+
 

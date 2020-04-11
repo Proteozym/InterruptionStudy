@@ -16,6 +16,7 @@ import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.telephony.TelephonyManager
+import android.util.EventLog
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.widget.Toast
@@ -127,6 +128,7 @@ class InterruptionStudyService : AccessibilityService() {
         })
 
         //startForeground()
+        super.onStartCommand(intent, flags, startId)
         return START_STICKY;
         //return super.onStartCommand(intent, flags, startId)
     }
@@ -544,9 +546,12 @@ class InterruptionStudyService : AccessibilityService() {
         SessionState.mvmntModalityRecord = mutableListOf()
 
         Log.d("Ö", "Pre Unreg")
-        if(comReceiver != null) unregisterReceiver(comReceiver!!); comReceiver = null;
-        if(activityReceiver != null) unregisterReceiver(activityReceiver!!); activityReceiver = null;
-        if(sessionTimeoutRec != null) unregisterReceiver(sessionTimeoutRec!!);  sessionTimeoutRec = null;
+        try {
+            if(comReceiver != null) unregisterReceiver(comReceiver!!); comReceiver = null;
+            if(activityReceiver != null) unregisterReceiver(activityReceiver!!); activityReceiver = null;
+            if(sessionTimeoutRec != null) unregisterReceiver(sessionTimeoutRec!!);  sessionTimeoutRec = null;
+        }
+        catch (err: java.lang.Exception) {Log.e("unreg err", err.toString())}
 
        stopService(Intent(this, TrackerWakelock::class.java))
         Log.d("Ö", "Post Unreg")

@@ -1,16 +1,20 @@
 package de.lmu.js.interruptionesm
 
 import android.app.IntentService
+import android.app.Service
 import android.content.Intent
 import android.util.Log
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.ActivityRecognitionResult
 import com.google.android.gms.location.DetectedActivity
-import java.util.*
 
 class DetectedActivitiesIntentService : IntentService(TAG) {
     override fun onCreate() {
         super.onCreate()
+    }
+
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        super.onStartCommand(intent, flags, startId)
+        return Service.START_STICKY
     }
 
     override fun onHandleIntent(intent: Intent?) {

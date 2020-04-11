@@ -26,7 +26,8 @@ class AppTrackerService: Service() {
                 sendBroadcast(Intent("LEARNING_APP_CLOSED"))
             }
         }
-        return super.onStartCommand(intent, flags, startId)
+        super.onStartCommand(intent, flags, startId);
+        return START_STICKY;
     }
 
 
