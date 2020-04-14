@@ -94,8 +94,8 @@ object BatteryOptimizationUtil {
         val componentName =
             getResolveableComponentName(context) ?: return null
         return Builder(context)
-            .setTitle("R.string.dialog_battery_title")
-            .setMessage("R.string.dialog_battery_message")
+            .setTitle("Checking Battery Optimization")
+            .setMessage("Have you enabled battery optimization or Auto Start feature? If yes, please ignore this message.")
             .setNegativeButton(
                 "No",
                 DialogInterface.OnClickListener { dialog, which -> negativeCallback?.onBatteryOptimizationCanceled() })

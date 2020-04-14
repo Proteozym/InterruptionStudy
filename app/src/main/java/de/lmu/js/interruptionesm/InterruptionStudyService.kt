@@ -3,39 +3,33 @@ package de.lmu.js.interruptionesm
 import android.R
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
-import android.app.Notification
-import android.app.NotificationChannel
-import android.app.NotificationManager
-import android.app.PendingIntent
-import android.content.*
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
-import android.graphics.Color
 import android.os.Build
 import android.os.PowerManager
 import android.provider.Settings
 import android.telephony.TelephonyManager
-import android.util.EventLog
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
-import android.widget.Toast
-import androidx.annotation.RequiresApi
-import androidx.core.app.NotificationCompat
-import com.aware.*
+import com.aware.ESM
+import com.aware.Screen
 import com.aware.ui.esms.ESMFactory
 import com.aware.ui.esms.ESM_Radio
 import com.google.android.gms.location.DetectedActivity
 import com.jakewharton.threetenabp.AndroidThreeTen
 import de.lmu.js.interruptionesm.DatabaseRef.pushDBDaily
 import de.lmu.js.interruptionesm.SessionState.Companion.mvmntModalityRecord
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
+import de.lmu.js.interruptionesm.utilities.Encrypt.Companion.encryptKey
+import de.lmu.js.interruptionesm.utilities.Notification
 import org.json.JSONException
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
+import java.util.*
 
 class InterruptionStudyService : AccessibilityService() {
 
@@ -45,16 +39,18 @@ class InterruptionStudyService : AccessibilityService() {
     var esmReceiver: ESMReceiver? = null
     private var comReceiver: BroadcastReceiver? = null
     //IS THIS SAVE??
-    lateinit var userKey: String
+    var userKey: String = ""
     var appSwitchList = mutableListOf<String>()
     val blockedAppList = mutableListOf<String>("com.android.systemui", "com.touchtype.swiftkey", "com.google.android.inputmethod.latin", "com.syntellia.fleksy.keyboard", "com.gamelounge.chroomakeyboard", "com.gingersoftware.android.keyboard", "com.boloorian.android.farsikeyboard", "com.jb.gokeyboard")
 
-    private var wakeLock: PowerManager.WakeLock? = null
-    private var isServiceStarted = false
     private var lastApp = ""
 
+    protected val NOTIFICATION_ID = 1337
 
-   /* @Nullable
+    var mCurrentService: InterruptionStudyService? = null
+    var counter = 0
+
+    /*@Nullable
     override fun onBind(intent: Intent?): IBinder? {
         return null
     }*/
@@ -72,22 +68,27 @@ class InterruptionStudyService : AccessibilityService() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-
-        userKey = Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID)
-
-        if (intent != null) {
-            val action = intent.action
-            Log.d( "Ö", "using an intent with action $action")
-            when (action) {
-                Actions.START.name -> startService()
-                Actions.STOP.name -> stopService()
-                else -> Log.d( "Ö", "This should never happen. No action in the received intent")
-            }
-        } else {
-            Log.d( "Ö",
-                "with a null intent. It has been probably restarted by the system."
-            )
+        if (userKey.isNullOrEmpty()) {
+            try {
+                userKey = encryptKey(Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID))
+            } catch (e: java.lang.Exception) {Log.e("Ö", "Error Encrypting")}
         }
+
+        super.onStartCommand(intent, flags, startId)
+        Log.d(TAG, "restarting Service !!");
+        counter = 0;
+        // it has been killed by Android and now it is restarted. We must make sure to have reinitialised everything
+        if (intent == null) {
+            val bck = ProcessMainClass()
+            bck.launchService(this)
+        }
+
+        // make sure you call the startForeground on onStartCommand because otherwise
+        // when we hide the notification on onScreen it will nto restart in Android 6 and 7
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            restartForeground()
+        }
+        startTimer();
 
         regActivity()
         regCom()
@@ -99,14 +100,6 @@ class InterruptionStudyService : AccessibilityService() {
         val resolveInfo: ResolveInfo =
             packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
         blockedAppList.add(resolveInfo.activityInfo.packageName)
-
-        AndroidThreeTen.init(this);
-
-        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
-        Aware.startAWARE(this)
-        //Applications.isAccessibilityServiceActive(this)
-
-        startService()
 
         Screen.setSensorObserver(object : Screen.AWARESensorObserver {
             override fun onScreenLocked() {
@@ -128,14 +121,49 @@ class InterruptionStudyService : AccessibilityService() {
         })
 
         //startForeground()
-        super.onStartCommand(intent, flags, startId)
+
         return START_STICKY;
         //return super.onStartCommand(intent, flags, startId)
     }
 
+    /**
+     * it starts the process in foreground. Normally this is done when screen goes off
+     * THIS IS REQUIRED IN ANDROID 8 :
+     * "The system allows apps to call Context.startForegroundService()
+     * even while the app is in the background.
+     * However, the app must call that service's startForeground() method within five seconds
+     * after the service is created."
+     */
+    fun restartForeground() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Log.i(TAG, "restarting foreground")
+            try {
+                val notification = Notification()
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification.setNotification(
+                        this,
+                        "Service notification",
+                        "Data Collection for Interruption Study",
+                        R.drawable.btn_star_big_on
+                    )
+                )
+                Log.i(TAG, "restarting foreground successful")
+                startTimer()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error in notification " + e.message)
+            }
+        }
+    }
+
+
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         Log.d("Ö", event.toString())
-
+        if (userKey.isNullOrEmpty()) {
+            try {
+                userKey = encryptKey(Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID))
+            } catch (e: java.lang.Exception) {Log.e("Ö", "Error Encrypting")}
+        }
         //REMEMBER LAST APP
 
         if (event.getEventType() === AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
@@ -157,8 +185,7 @@ class InterruptionStudyService : AccessibilityService() {
                 Log.d("Ö package name", event!!.getPackageName().toString())
                 Log.d("Ö app name", appName)
                 var packName = event!!.packageName.toString()
-
-                pushDBDaily(packName, userKey)
+                if(!userKey.isNullOrEmpty())pushDBDaily(packName, userKey)
 
                 //get selected app to track
                 val sharedPref = getSharedPreferences(getString(de.lmu.js.interruptionesm.R.string.preference_key), Context.MODE_PRIVATE)
@@ -170,6 +197,7 @@ class InterruptionStudyService : AccessibilityService() {
                 else {
                     if (packName.equals(packToTrack)) { //de.lmu.js.interruptionesm
                         if (SessionState.sessionStopped) {
+                            AndroidThreeTen.init(this.applicationContext)
                             startSession()
                             //generateESM()
                             Log.d("Ö Session", "Started")
@@ -219,141 +247,14 @@ class InterruptionStudyService : AccessibilityService() {
 
     override fun onCreate() {
         super<AccessibilityService>.onCreate()
-
-        var notification = createNotification()
-        startForeground(1, notification)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            restartForeground();
+        }
+        mCurrentService = this;
     }
 
     override fun onInterrupt() {
         TODO("Not yet implemented")
-    }
-
-    private fun startService() {
-        if (isServiceStarted) return
-
-        Toast.makeText(this, "Service starting its task", Toast.LENGTH_SHORT).show()
-        isServiceStarted = true
-        setServiceState(this, de.lmu.js.interruptionesm.ServiceState.STARTED)
-
-        // we need this lock so our service gets not affected by Doze Mode
-        wakeLock =
-            (getSystemService(Context.POWER_SERVICE) as PowerManager).run {
-                newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "EndlessService::lock").apply {
-                    acquire()
-                }
-            }
-
-        // we're starting a loop in a coroutine
-        GlobalScope.launch(Dispatchers.IO) {
-            while (isServiceStarted) {
-                launch(Dispatchers.IO) {
-                    //pingFakeServer()
-                }
-                delay(1 * 60 * 1000)
-            }
-
-        }
-    }
-
-    private fun stopService() {
-
-        Toast.makeText(this, "Service stopping", Toast.LENGTH_SHORT).show()
-        try {
-            wakeLock?.let {
-                if (it.isHeld) {
-                    it.release()
-                }
-            }
-            stopForeground(true)
-            stopSelf()
-        } catch (e: Exception) {
-            Log.d("Ö", "Service stopped without being started: ${e.message}")
-        }
-        isServiceStarted = false
-        setServiceState(this, de.lmu.js.interruptionesm.ServiceState.STOPPED)
-    }
-
-    private fun createNotification(): Notification {
-        val notificationChannelId = "ENDLESS SERVICE CHANNEL"
-
-        // depending on the Android API that we're dealing with we will have
-        // to use a specific method to create the notification
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager;
-            val channel = NotificationChannel(
-                notificationChannelId,
-                "Endless Service notifications channel",
-                NotificationManager.IMPORTANCE_HIGH
-            ).let {
-                it.description = "Endless Service channel"
-                it.enableLights(true)
-                it.lightColor = Color.RED
-                it.enableVibration(true)
-                it.vibrationPattern = longArrayOf(100, 200, 300, 400, 500, 400, 300, 200, 400)
-                it
-            }
-            notificationManager.createNotificationChannel(channel)
-        }
-
-        val pendingIntent: PendingIntent = Intent(this, MainActivity::class.java).let { notificationIntent ->
-            PendingIntent.getActivity(this, 0, notificationIntent, 0)
-        }
-
-        val builder: Notification.Builder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) Notification.Builder(
-            this,
-            notificationChannelId
-        ) else Notification.Builder(this)
-
-        return builder
-            .setContentTitle("Interruption Study")
-            .setContentText("Data collection active")
-            .setContentIntent(pendingIntent)
-            .setSmallIcon(R.drawable.edit_text)
-            //.setTicker("Ticker text")
-            .setPriority(Notification.PRIORITY_HIGH) // for under android 26 compatibility
-            .build()
-    }
-
-    //TODO: Remove
-    private fun startForeground() {
-        val notificationIntent = Intent(this, MainActivity::class.java)
-        val pendingIntent = PendingIntent.getActivity(
-            this, 0,
-            notificationIntent, 0
-        )
-
-        val channelId =
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                createNotificationChannel("Interrupt_Study", "My Background Service")
-            } else {
-                // If earlier version channel ID is not used
-                // https://developer.android.com/reference/android/support/v4/app/NotificationCompat.Builder.html#NotificationCompat.Builder(android.content.Context)
-                ""
-            }
-
-        startForeground(
-            101, NotificationCompat.Builder(
-                this,
-                channelId
-            )
-                .setOngoing(true)
-                .setSmallIcon(R.drawable.btn_dialog)
-                .setContentTitle("Interruption Study")
-                .setContentText("Service is running background")
-                .setContentIntent(pendingIntent)
-                .build()
-        )
-    }
-
-    @RequiresApi(Build.VERSION_CODES.O)
-    private fun createNotificationChannel(channelId: String, channelName: String): String{
-        val chan = NotificationChannel(channelId,
-            channelName, NotificationManager.IMPORTANCE_NONE)
-        chan.lightColor = Color.BLUE
-        chan.lockscreenVisibility = Notification.VISIBILITY_PRIVATE
-        val service = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        service.createNotificationChannel(chan)
-        return channelId
     }
 
     private fun handleScreenInterruption(trigger: String) {
@@ -480,13 +381,39 @@ class InterruptionStudyService : AccessibilityService() {
         //Aware.stopAWARE(this)
         //TODO KILL APP WATCHER SERVCE?
         Log.d("Ö", "Pre Unreg")
-        if(esmReceiver != null) unregisterReceiver(esmReceiver!!); esmReceiver = null;
-        if(comReceiver != null) unregisterReceiver(comReceiver!!); comReceiver = null;
-        if(activityReceiver != null) unregisterReceiver(activityReceiver!!); activityReceiver = null;
-        if(sessionTimeoutRec != null) unregisterReceiver(sessionTimeoutRec!!); sessionTimeoutRec = null;
-        stopService(Intent(this, TrackerWakelock::class.java))
+        try {
+
+
+            if (esmReceiver != null) unregisterReceiver(esmReceiver!!); esmReceiver = null;
+            if (comReceiver != null) unregisterReceiver(comReceiver!!); comReceiver = null;
+            if (activityReceiver != null) unregisterReceiver(activityReceiver!!); activityReceiver =
+                null;
+            if (sessionTimeoutRec != null) unregisterReceiver(sessionTimeoutRec!!); sessionTimeoutRec =
+                null;
+
+            stopService(Intent(this, TrackerWakelock::class.java))
+        } catch (e: java.lang.Exception) {}
         Log.d("Ö", "Post Unreg")
         super<AccessibilityService>.onDestroy()
+
+        Log.i(TAG, "onDestroy called")
+        // restart the never ending service
+        // restart the never ending service
+        val broadcastIntent = Intent("restarter")
+        sendBroadcast(broadcastIntent)
+        stoptimertask()
+    }
+
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        Log.i(TAG, "onTaskRemoved called")
+        // restart the never ending service
+        val broadcastIntent = Intent("restarter")
+        sendBroadcast(broadcastIntent)
+        // do not call stoptimertask because on some phones it is called asynchronously
+        // after you swipe out the app and therefore sometimes
+        // it will stop the timer after it was restarted
+        // stoptimertask();
     }
 
 
@@ -674,6 +601,51 @@ Log.d("Ö this", addProp.toString())
         esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
         if(esmReceiver != null) regESM()
         registerReceiver(esmReceiver, esmFilter)
+    }
+
+
+    private var timer: Timer? = null
+    private var timerTask: TimerTask? = null
+    var oldTime: Long = 0
+    fun startTimer() {
+        //set a new Timer
+        timer = Timer()
+
+        //initialize the TimerTask's job
+        initializeTimerTask()
+
+        //schedule the timer, to wake up every 1 second
+        timer!!.schedule(timerTask, 1000, 1000) //
+    }
+
+    /**
+     * it sets the timer to print the counter every x seconds
+     */
+    fun initializeTimerTask() {
+        timerTask = object : TimerTask() {
+            override fun run() {
+                Log.i("in timer", "in timer ++++  " + counter++)
+            }
+        }
+    }
+
+    /**
+     * not needed
+     */
+    fun stoptimertask() {
+        //stop the timer, if it's not already null
+        if (timer != null) {
+            timer!!.cancel()
+            timer = null
+        }
+    }
+
+    fun getmCurrentService(): InterruptionStudyService? {
+        return mCurrentService
+    }
+
+    fun setmCurrentService(mCurrentService: InterruptionStudyService?) {
+        this.mCurrentService = mCurrentService
     }
 
 }

@@ -2,6 +2,7 @@ package de.lmu.js.interruptionesm
 
 
 import android.Manifest
+import android.app.ActivityManager
 import android.content.*
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -31,6 +32,7 @@ import com.aware.Aware
 import com.aware.Aware_Preferences
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
+import com.jakewharton.threetenabp.AndroidThreeTen
 
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -52,6 +54,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     lateinit var sharedPref: SharedPreferences
     lateinit var editor: SharedPreferences.Editor
     var checkSpinnerInit = 0
+
+    var mServiceIntent: Intent? = null
+    private var mSensorService: InterruptionStudyService? = null
+    var ctx: Context? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -123,7 +129,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)!= PackageManager.PERMISSION_GRANTED) {
             Log.d("Ö", "Phone State---------")
-// We do not have this permission. Let’s ask the user
+            // We do not have this permission. Let’s ask the user
             permList.add(Manifest.permission.READ_PHONE_STATE)
             viewPermList.add(permissionView("Read Phone State", false, Manifest.permission.READ_PHONE_STATE))
         }
@@ -133,23 +139,13 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.RECEIVE_SMS)!= PackageManager.PERMISSION_GRANTED) {
             Log.d("Ö", "Receive SMS---------")
-// We do not have this permission. Let’s ask the user
+            // We do not have this permission. Let’s ask the user
             permList.add(Manifest.permission.RECEIVE_SMS)
             viewPermList.add(permissionView("Receive SMS", false, Manifest.permission.RECEIVE_SMS))
         }
         else {
             viewPermList.add(permissionView("Receive SMS", true, Manifest.permission.RECEIVE_SMS))
         }
-
-       /* if(ContextCompat.checkSelfPermission(this, Manifest.permission.BIND_NOTIFICATION_LISTENER_SERVICE)!= PackageManager.PERMISSION_GRANTED) {
-
-// We do not have this permission. Let’s ask the user
-            permList.add(Manifest.permission.BIND_NOTIFICATION_LISTENER_SERVICE)
-            viewPermList.add(permissionView("Notification Listener", false))
-        }
-        else {
-            viewPermList.add(permissionView("Notification Listener", true))
-        }*/
 
         if (Build.VERSION.SDK_INT <= 28) {
             Log.d("Ö", "Q")
@@ -176,8 +172,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)!= PackageManager.PERMISSION_GRANTED) {
-
-// We do not have this permission. Let’s ask the user
+            // We do not have this permission. Let’s ask the user
             permList.add(Manifest.permission.ACCESS_FINE_LOCATION)
             viewPermList.add(permissionView("Location", false, Manifest.permission.ACCESS_FINE_LOCATION))
         }
@@ -194,18 +189,17 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
 
 
-
+        AndroidThreeTen.init(this);
         Aware.startScreen(this)
+        Aware.startESM(this)
+
         //Aware.setSetting(this, Aware_Preferences.DEBUG_FLAG, true)
 
         // Register for checking application use
         //ware.setSetting(this, Aware_Preferences.STATUS_APPLICATIONS, true)
         //Aware.setSetting(this, Aware_Preferences.STATUS_NOTIFICATIONS, true)
-        Aware.setSetting(this, Aware_Preferences.STATUS_ESM, true)
-        Aware.startAWARE(this)
+        //Aware.startAWARE(this)
 
-
-Log.d("Ö", permList.toString())
         if (permList.isNotEmpty()) ActivityCompat.requestPermissions(this@MainActivity, permList.toTypedArray(), MY_PERMISSIONS_REQUEST);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
@@ -240,8 +234,6 @@ Log.d("Ö", permList.toString())
 
         }
 
-        //val sharedPref = this.getPreferences(Context.MODE_PRIVATE)
-
         var app = sharedPref.getString("APP", "empty");
         Log.d("Ö is", app.toString())
         var spinnerSelected = AppItem<String>("null", "null")
@@ -261,18 +253,13 @@ Log.d("Ö", permList.toString())
         // Set layout to use when the list of choices appear
         positionAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         // Set Adapter to Spinner
-
         spinner!!.setAdapter(positionAdapter)
         //Read from save
-
-        Log.d("Ö in3", appData.indexOf(spinnerSelected).toString())
         spinner!!.setSelection(positionAdapter.getPosition(spinnerSelected))
 
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {
-
             }
-
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 // val item = parent.getItemAtPosition(position) as EnumTextItem<Position>
                 if(++checkSpinnerInit > 1) {
@@ -290,7 +277,9 @@ Log.d("Ö", permList.toString())
         var dialog = BatteryOptimizationUtil.getBatteryOptimizationDialog(this);
         if (dialog != null) dialog.show();
 
-        Intent(this, InterruptionStudyService::class.java).also {
+
+//OLD WAY
+        /*Intent(this, InterruptionStudyService::class.java).also {
             it.action = Actions.START.name
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 Log.d("Ö", "Starting the service in >=26 Mode")
@@ -299,9 +288,29 @@ Log.d("Ö", permList.toString())
             }
             Log.d("Ö", "Starting the service in < 26 Mode")
             startService(it)
+        }*/
+//OLD WAY
+
+        //mSensorService = InterruptionStudyService()
+        mServiceIntent = Intent(this, InterruptionStudyService::class.java)
+        if (!isMyServiceRunning(InterruptionStudyService::class.java)) {
+            startService(mServiceIntent)
         }
 
 
+    }
+
+    private fun isMyServiceRunning(serviceClass: Class<*>): Boolean {
+        val manager: ActivityManager =
+            getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
+            if (serviceClass.name == service.service.getClassName()) {
+                Log.i("isMyServiceRunning?", true.toString() + "")
+                return true
+            }
+        }
+        Log.i("isMyServiceRunning?", false.toString() + "")
+        return false
     }
 
     override fun onRequestPermissionsResult(requestCode: Int,
@@ -350,7 +359,13 @@ Log.d("Ö", permList.toString())
 
     override fun onResume() {
         super.onResume()
-        startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
+        //startService(Intent(this@MainActivity, InterruptionStudyService::class.java))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            RestartServiceBroadcastReceiver.scheduleJob(applicationContext)
+        } else {
+            val bck = ProcessMainClass()
+            bck.launchService(applicationContext)
+        }
         var accessibilityRequestReceiverFilter = IntentFilter();
         accessibilityRequestReceiverFilter.addAction("TRIGGER_ACCESSIBILITY")
         accessibilityRequestReceiverFilter.addAction("TRIGGER_PERMISSION")
@@ -367,7 +382,8 @@ Log.d("Ö", permList.toString())
     }
 
     override fun onDestroy() {
-        //stopService(Intent(this@MainActivity, InterruptionStudyService::class.java))
+        stopService(mServiceIntent);
+        Log.i("MAINACT", "onDestroy!");
         super.onDestroy()
     }
 

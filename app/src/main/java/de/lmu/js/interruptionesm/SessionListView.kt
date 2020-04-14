@@ -26,10 +26,12 @@ import com.google.android.material.navigation.NavigationView
 import com.google.common.base.Strings.isNullOrEmpty
 import com.google.firebase.firestore.*
 import com.google.firebase.firestore.auth.User
+import de.lmu.js.interruptionesm.utilities.Encrypt
 
 import kotlinx.coroutines.MainScope
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.content_list.*
+import java.lang.Exception
 import java.text.SimpleDateFormat
 
 class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -40,7 +42,7 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
     lateinit var toolbar: androidx.appcompat.widget.Toolbar
     lateinit var drawerLayout: DrawerLayout
     lateinit var navView: NavigationView
-    lateinit var userKey: String
+    var userKey: String = ""
     var list: ListView? = null
     private var adapter: ProductFirestoreRecyclerAdapter? = null
 
@@ -50,7 +52,16 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_list)
 
-        userKey = Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID)
+        if (isNullOrEmpty(userKey)) {
+            try {
+                Encrypt.encryptKey(
+                    Settings.Secure.getString(
+                        this.contentResolver,
+                        Settings.Secure.ANDROID_ID
+                    )
+                )
+            } catch (e: Exception) {Log.e("Ö", "List User Key Enc Error")}
+        }
 
         toolbar = findViewById(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -68,32 +79,42 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
         //LIST
 
         if (!isNullOrEmpty(userKey)) {
-            mMainList = findViewById(R.id.main_list)
-
-            val query = dbInstance!!.collection("UserEvent").whereEqualTo("userKey", userKey).whereEqualTo("eventType", "SESSION_START").orderBy("timestamp", Query.Direction.DESCENDING)
-
-            val options = FirestoreRecyclerOptions.Builder<UserEvent>().setQuery(query, UserEvent::class.java).build()
-
-            adapter = ProductFirestoreRecyclerAdapter(options)
-
-            mMainList.adapter = adapter
-            mMainList.layoutManager = LinearLayoutManager(this)
-
-            adapter?.itemClickListener = { event ->
-
-                // do something with your item
-                Log.d("TAG", event.sessionId.toString())
-                val myIntent = Intent(this, TimelineActivity::class.java)
-                var bundle = Bundle()
-                bundle.putInt("sessionId", event.sessionId)
-                myIntent.putExtras(bundle)
-                startActivityForResult(myIntent, 0)
-            }
+           initiateAdapter()
         }
     }
+
+    private fun initiateAdapter() {
+        mMainList = findViewById(R.id.main_list)
+
+
+        val query = dbInstance.collection("UserEvent").whereEqualTo("userKey", userKey).whereEqualTo("eventType", "SESSION_START").orderBy("timestamp", Query.Direction.DESCENDING)
+
+        val options = FirestoreRecyclerOptions.Builder<UserEvent>().setQuery(query, UserEvent::class.java).build()
+
+        adapter = ProductFirestoreRecyclerAdapter(options)
+
+        mMainList.adapter = adapter
+        mMainList.layoutManager = LinearLayoutManager(this)
+
+        adapter?.itemClickListener = { event ->
+
+            // do something with your item
+            Log.d("TAG", event.sessionId.toString())
+            val myIntent = Intent(this, TimelineActivity::class.java)
+            var bundle = Bundle()
+            bundle.putInt("sessionId", event.sessionId)
+            myIntent.putExtras(bundle)
+            startActivityForResult(myIntent, 0)
+        }
+    }
+
     override fun onStart() {
         super.onStart()
-        adapter!!.startListening()
+        if(adapter == null)initiateAdapter()
+        try {
+            adapter!!.startListening()
+        } catch (e: Exception) {Log.e("Ö", "Error Loading adapter")}
+
     }
 
     override fun onStop() {
