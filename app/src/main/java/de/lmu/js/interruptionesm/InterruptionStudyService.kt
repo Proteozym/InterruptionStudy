@@ -3,6 +3,7 @@ package de.lmu.js.interruptionesm
 import android.R
 import android.accessibilityservice.AccessibilityService
 import android.accessibilityservice.AccessibilityServiceInfo
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -10,25 +11,31 @@ import android.content.IntentFilter
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.inputmethodservice.InputMethodService
 import android.os.Build
-import android.os.PowerManager
 import android.provider.Settings
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
+import android.view.inputmethod.InputMethodManager
 import com.aware.ESM
 import com.aware.Screen
 import com.aware.ui.esms.ESMFactory
 import com.aware.ui.esms.ESM_Radio
 import com.google.android.gms.location.DetectedActivity
+import com.google.firebase.Timestamp.now
 import com.jakewharton.threetenabp.AndroidThreeTen
 import de.lmu.js.interruptionesm.DatabaseRef.pushDBDaily
 import de.lmu.js.interruptionesm.SessionState.Companion.mvmntModalityRecord
+import de.lmu.js.interruptionesm.SessionState.Companion.sessionStart
 import de.lmu.js.interruptionesm.utilities.Encrypt.Companion.encryptKey
 import de.lmu.js.interruptionesm.utilities.Notification
+import de.lmu.js.interruptionesm.utilities.SessionUtil
 import org.json.JSONException
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
+import com.google.firebase.Timestamp
+import java.time.Instant.now
 import java.util.*
 
 class InterruptionStudyService : AccessibilityService() {
@@ -38,11 +45,11 @@ class InterruptionStudyService : AccessibilityService() {
     var sessionTimeoutRec: BroadcastReceiver? = null
     var esmReceiver: ESMReceiver? = null
     private var comReceiver: BroadcastReceiver? = null
+
     //IS THIS SAVE??
     var userKey: String = ""
     var appSwitchList = mutableListOf<String>()
-    val blockedAppList = mutableListOf<String>("com.android.systemui", "com.touchtype.swiftkey", "com.google.android.inputmethod.latin", "com.syntellia.fleksy.keyboard", "com.gamelounge.chroomakeyboard", "com.gingersoftware.android.keyboard", "com.boloorian.android.farsikeyboard", "com.jb.gokeyboard")
-
+    val blockedAppList = mutableListOf<String>("com.jb.emoji.gokeyboard", "com.google.android.inputmethod.latin", "com.google.android.", "com.sec.android.inputmethod", "com.android.systemui", "com.touchtype.swiftkey", "com.google.android.inputmethod.latin", "com.syntellia.fleksy.keyboard", "com.gamelounge.chroomakeyboard", "com.gingersoftware.android.keyboard", "com.boloorian.android.farsikeyboard", "com.jb.gokeyboard")
     private var lastApp = ""
 
     protected val NOTIFICATION_ID = 1337
@@ -88,42 +95,38 @@ class InterruptionStudyService : AccessibilityService() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             restartForeground()
         }
-        startTimer();
+        //startTimer();
 
         regActivity()
         regCom()
         regSess()
         regESM()
-
+        trackScreen()
+        readSystemDefaultApps()
         val intent = Intent(Intent.ACTION_MAIN)
         intent.addCategory(Intent.CATEGORY_HOME)
         val resolveInfo: ResolveInfo =
             packageManager.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY)
         blockedAppList.add(resolveInfo.activityInfo.packageName)
-
-        Screen.setSensorObserver(object : Screen.AWARESensorObserver {
-            override fun onScreenLocked() {
-                handleScreenInterruption("lock")
-            }
-
-            override fun onScreenOff() {
-                handleScreenInterruption("off")
-            }
-
-            override fun onScreenOn() {
-                Log.d("Ö", "Screen ON")
-            }
-
-            override fun onScreenUnlocked() {
-                handleScreenInterruption("on")
-
-            }
-        })
-
         //startForeground()
 
         return START_STICKY;
         //return super.onStartCommand(intent, flags, startId)
+    }
+
+    @SuppressLint("ServiceCast")
+    private fun readSystemDefaultApps() {
+        val localPackageManager = packageManager
+        val intent = Intent("android.intent.action.MAIN")
+        intent.addCategory("android.intent.category.HOME")
+        val str = localPackageManager.resolveActivity(
+            intent,
+            PackageManager.MATCH_DEFAULT_ONLY
+        ).activityInfo.packageName
+        blockedAppList.add(str)
+
+        val kbName = Settings.Secure.getString(getContentResolver(), Settings.Secure.DEFAULT_INPUT_METHOD);
+        blockedAppList.add(kbName.split("/")[0])
     }
 
     /**
@@ -149,11 +152,36 @@ class InterruptionStudyService : AccessibilityService() {
                     )
                 )
                 Log.i(TAG, "restarting foreground successful")
-                startTimer()
+                //startTimer()
+                SessionUtil.checkSessionId(this)
+                regESM()
+                trackScreen()
+                readSystemDefaultApps()
             } catch (e: Exception) {
                 Log.e(TAG, "Error in notification " + e.message)
             }
         }
+    }
+
+    fun trackScreen() {
+        Screen.setSensorObserver(object : Screen.AWARESensorObserver {
+            override fun onScreenLocked() {
+                handleScreenInterruption("lock")
+            }
+
+            override fun onScreenOff() {
+                handleScreenInterruption("off")
+            }
+
+            override fun onScreenOn() {
+                Log.d("Ö", "Screen ON")
+            }
+
+            override fun onScreenUnlocked() {
+                handleScreenInterruption("on")
+
+            }
+        })
     }
 
 
@@ -282,11 +310,12 @@ class InterruptionStudyService : AccessibilityService() {
     private fun handleUserActivity(type: Int, confidence: Int) {
         var label = getString(de.lmu.js.interruptionesm.R.string.activity_unknown)
         Log.d("Ö Movement", "IN")
+        if (SessionState.mvmntModalityRecord.isNullOrEmpty()) mvmntModalityRecord = mutableListOf(MovementRecord(MovementRecord.Movement.NONE, 100))
         when (type) {
 
             DetectedActivity.IN_VEHICLE -> {
                 Log.d("Ö Movement", "IN_VEHICLE")
-                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.IN_VEHICLE) {
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.IN_VEHICLE && confidence > 80)  {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_in_vehicle)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.IN_VEHICLE, confidence))
                     DatabaseRef.pushDB(
@@ -299,7 +328,7 @@ class InterruptionStudyService : AccessibilityService() {
             }
             DetectedActivity.ON_BICYCLE -> {
                 Log.d("Ö Movement", "ON_BICYCLE")
-                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.ON_BICYCLE) {
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.ON_BICYCLE && confidence > 80) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_on_bicycle)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.ON_BICYCLE, confidence))
                     DatabaseRef.pushDB(
@@ -319,7 +348,7 @@ class InterruptionStudyService : AccessibilityService() {
             }
             DetectedActivity.RUNNING -> {
                 Log.d("Ö Movement", "RUNNING")
-                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.RUNNING) {
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.RUNNING && confidence > 80) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_running)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.RUNNING, confidence))
                     DatabaseRef.pushDB(
@@ -332,7 +361,7 @@ class InterruptionStudyService : AccessibilityService() {
             }
             DetectedActivity.STILL -> {
                 Log.d("Ö Movement", "STILL")
-                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.STILL) {
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.STILL && confidence > 80) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_still)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.STILL, confidence))
                     DatabaseRef.pushDB(
@@ -345,7 +374,7 @@ class InterruptionStudyService : AccessibilityService() {
             }
             DetectedActivity.WALKING -> {
                 Log.d("Ö Movement", "WALKING")
-                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.WALKING) {
+                if(SessionState.mvmntModalityRecord.last().movement != MovementRecord.Movement.WALKING && confidence > 80) {
                     label = getString(de.lmu.js.interruptionesm.R.string.activity_walking)
                     SessionState.mvmntModalityRecord.add(MovementRecord(MovementRecord.Movement.WALKING, confidence))
                     DatabaseRef.pushDB(
@@ -384,15 +413,21 @@ class InterruptionStudyService : AccessibilityService() {
         try {
 
 
-            if (esmReceiver != null) unregisterReceiver(esmReceiver!!); esmReceiver = null;
-            if (comReceiver != null) unregisterReceiver(comReceiver!!); comReceiver = null;
-            if (activityReceiver != null) unregisterReceiver(activityReceiver!!); activityReceiver =
+            if (esmReceiver != null) {
+                unregisterReceiver(esmReceiver)
+                esmReceiver = null;
+            }
+            if (comReceiver != null) unregisterReceiver(comReceiver); comReceiver = null;
+            if (activityReceiver != null) unregisterReceiver(activityReceiver); activityReceiver =
                 null;
-            if (sessionTimeoutRec != null) unregisterReceiver(sessionTimeoutRec!!); sessionTimeoutRec =
+            if (sessionTimeoutRec != null) unregisterReceiver(sessionTimeoutRec); sessionTimeoutRec =
                 null;
 
             stopService(Intent(this, TrackerWakelock::class.java))
-        } catch (e: java.lang.Exception) {}
+        } catch (e: java.lang.Exception) {
+
+            Log.e("Ö", e.toString())
+        }
         Log.d("Ö", "Post Unreg")
         super<AccessibilityService>.onDestroy()
 
@@ -401,7 +436,7 @@ class InterruptionStudyService : AccessibilityService() {
         // restart the never ending service
         val broadcastIntent = Intent("restarter")
         sendBroadcast(broadcastIntent)
-        stoptimertask()
+        //stoptimertask()
     }
 
     override fun onTaskRemoved(rootIntent: Intent?) {
@@ -440,24 +475,34 @@ class InterruptionStudyService : AccessibilityService() {
         Log.d("Ö ", "In startSess")
         if (!SessionState.sessionStopped) return;
         SessionState.sessionStopped = false
+        sessionStart = Timestamp.now()
         Log.d("Ö ", "In startSessY")
         SessionState.sessionId = LocalTime.now().hashCode();
         Log.d("Ö SessionID", SessionState.sessionId.toString())
-        if(activityReceiver != null) regActivity()
+
+        val prefFile = getString(de.lmu.js.interruptionesm.R.string.preference_key)
+        val sharedPref = this.getSharedPreferences(
+            prefFile, Context.MODE_PRIVATE)
+        val editor = sharedPref.edit();
+
+        editor.putInt("SessionId", SessionState.sessionId)
+
+        editor.apply();
+
+        var succ = editor.commit();
+
+        if(activityReceiver == null) regActivity()
         registerReceiver(activityReceiver, IntentFilter(Constants.BROADCAST_DETECTED_ACTIVITY))
         startTracking();
-
 
         var communicationFilter = IntentFilter();
         communicationFilter.addAction("android.intent.action.PHONE_STATE")
         communicationFilter.addAction("android.provider.Telephony.SMS_RECEIVED")
-        if(comReceiver != null) regCom()
+        if(comReceiver == null) regCom()
         registerReceiver(comReceiver, communicationFilter)
 
         DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
         //startService(Intent(this, AppTrackerService::class.java))
-
-
 
     }
 
@@ -485,6 +530,8 @@ class InterruptionStudyService : AccessibilityService() {
     }
 
     fun generateESM() {
+        if (sessionStart == null) return
+        if (sessionStart.seconds - Timestamp.now().seconds < 30 ) return
         try {
             var factory = ESMFactory();
             var questionCounter = 0
@@ -504,7 +551,19 @@ class InterruptionStudyService : AccessibilityService() {
             }
             Log.d("Ö", "In")
             //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
-            SessionState.esmCounter = 2 + questionCounter
+
+            val prefFile = getString(de.lmu.js.interruptionesm.R.string.preference_key)
+            val sharedPref = this.getSharedPreferences(
+                prefFile, Context.MODE_PRIVATE)
+            val editor = sharedPref.edit();
+
+            editor.putInt("esmCounter", 2 + questionCounter)
+
+            editor.apply();
+
+            var succ = editor.commit();
+
+            //SessionState.esmCounter = 2 + questionCounter
 
 
             var socialRadio = ESM_Radio();
@@ -518,6 +577,8 @@ class InterruptionStudyService : AccessibilityService() {
             locationRadio.addRadio("Work")
                 .addRadio("Home")
                 .addRadio("Commute")
+                .addRadio("Traveling")
+                .addRadio("Outdoors")
                 .setInstructions("Were were you during your latest session?")
                 .setSubmitButton("OK");
             factory.addESM(locationRadio);
@@ -538,7 +599,7 @@ class InterruptionStudyService : AccessibilityService() {
         DatabaseRef.pushDB(eventType.INTERRUPTION_START, eVal, userKey, addProp)
         var wakeFilter = IntentFilter();
         wakeFilter.addAction("SESSION_TIMED_OUT")
-        if(sessionTimeoutRec != null) regSess()
+        if(sessionTimeoutRec == null) regSess()
         registerReceiver(sessionTimeoutRec, wakeFilter)
         startService(Intent(this, TrackerWakelock::class.java))
     }
@@ -595,12 +656,14 @@ Log.d("Ö this", addProp.toString())
         }
     }
     private fun regESM() {
-        var esmFilter = IntentFilter();
-        esmFilter.addAction(ESM.ACTION_AWARE_ESM_QUEUE_COMPLETE)
-        esmFilter.addAction(ESM.ACTION_AWARE_ESM_DISMISSED)
-        esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
-        if(esmReceiver != null) regESM()
-        registerReceiver(esmReceiver, esmFilter)
+        if (esmReceiver != null) {
+            var esmFilter = IntentFilter();
+            esmFilter.addAction(ESM.ACTION_AWARE_ESM_QUEUE_COMPLETE)
+            esmFilter.addAction(ESM.ACTION_AWARE_ESM_DISMISSED)
+            esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
+            esmReceiver = ESMReceiver()
+            registerReceiver(esmReceiver, esmFilter)
+        }
     }
 
 

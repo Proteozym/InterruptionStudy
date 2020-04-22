@@ -29,6 +29,7 @@ class TrackerWakelock : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         //handler.post(periodicUpdate)
+        Log.d("WakeLock", "IN1")
         handler.postDelayed({
                     sendBroadcast(Intent("SESSION_TIMED_OUT"))
                     Log.d("WakeLock", "IN")

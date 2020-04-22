@@ -11,6 +11,9 @@ import com.aware.ESM
 import com.aware.providers.ESM_Provider
 import com.google.gson.Gson
 import de.lmu.js.interruptionesm.SessionState.Companion.esmWasDismissed
+import de.lmu.js.interruptionesm.utilities.Encrypt
+import de.lmu.js.interruptionesm.utilities.SessionUtil
+import de.lmu.js.interruptionesm.utilities.SessionUtil.Companion.checkSessionId
 import org.json.JSONObject
 
 class ESMReceiver: BroadcastReceiver() {
@@ -38,8 +41,9 @@ class ESMReceiver: BroadcastReceiver() {
                 Log.d("ESMA", "pending_esms.getString(7)")
                 if (pending_esms != null && pending_esms.moveToFirst()) {
                     Log.d("ESMA", pending_esms.getString(7))
-                    Log.d("ESMA", SessionState.esmCounter.toString())
-                    pending_esms.moveToPosition(pending_esms.count - SessionState.esmCounter - 1)
+                   // Log.d("ESMA", SessionState.esmCounter.toString())
+                    var count = SessionUtil.checkESMCount(context)
+                    pending_esms.moveToPosition(pending_esms.count - count - 1)
                     val esmAnswerObj = JSONObject()
                     var i = 1
                     var gson = Gson()
@@ -55,15 +59,17 @@ class ESMReceiver: BroadcastReceiver() {
                         )
                         i++
                     }
+                    checkSessionId(context)
                     DatabaseRef.pushDB(
                         eventType.ESM_ANSWER,
                         eventValue.NONE,
-                        Settings.Secure.getString(
-                            context.contentResolver,
-                            Settings.Secure.ANDROID_ID
-                        ),
-                        mapOf("Answer" to esmAnswerObj.toString())
-                    )
+                        Encrypt.encryptKey(
+                            Settings.Secure.getString(
+                                context.contentResolver,
+                                Settings.Secure.ANDROID_ID
+                            )),
+                            mapOf("Answer" to esmAnswerObj.toString())
+                        )
 
                 }
             }
@@ -77,6 +83,7 @@ class ESMReceiver: BroadcastReceiver() {
             Log.d("ESM___", "Expired")
         }
     }
+
 
 
 }

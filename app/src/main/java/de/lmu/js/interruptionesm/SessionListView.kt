@@ -54,7 +54,7 @@ class SessionListView : AppCompatActivity(), NavigationView.OnNavigationItemSele
 
         if (isNullOrEmpty(userKey)) {
             try {
-                Encrypt.encryptKey(
+                userKey = Encrypt.encryptKey(
                     Settings.Secure.getString(
                         this.contentResolver,
                         Settings.Secure.ANDROID_ID
