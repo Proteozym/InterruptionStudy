@@ -22,8 +22,6 @@ import com.aware.ESM
 import com.aware.Screen
 import com.aware.ui.esms.ESMFactory
 import com.aware.ui.esms.ESM_Radio
-import com.charmeryl.appupdater.AppUpdater
-
 import com.google.android.gms.location.DetectedActivity
 import com.google.firebase.Timestamp.now
 import com.jakewharton.threetenabp.AndroidThreeTen
@@ -37,6 +35,7 @@ import org.json.JSONException
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
 import com.google.firebase.Timestamp
+import com.updater.eccm.appupdater.AppUpdater
 import java.time.Instant.now
 import java.util.*
 
@@ -168,12 +167,9 @@ class InterruptionStudyService : AccessibilityService() {
     }
 
     fun checkForUpdate() {
-        Log.d("Ö", "iin")
-        Log.d("Ö", "iin2")
-        AppUpdater(this)
-            .setUpdateUrl("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json")
-            .start();
+        AppUpdater(this).sendNetworkUpdateAppRequest("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json");
     }
+
 
     fun trackScreen() {
         Screen.setSensorObserver(object : Screen.AWARESensorObserver {

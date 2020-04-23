@@ -14,7 +14,7 @@ android {
         minSdkVersion 24
         targetSdkVersion 29
         versionCode 1
-        versionName "1.0"
+        versionName "0.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled true
     }
@@ -36,7 +36,7 @@ repositories {
 }
 
 dependencies {
-    implementation 'com.github.CharmeRyl:AppUpdater:v1.0.1'
+
     api "com.github.denzilferreira:aware-client:master-SNAPSHOT"
     implementation fileTree(dir: 'libs', include: ['*.jar'])
 
@@ -82,6 +82,7 @@ dependencies {
 
     implementation 'commons-codec:commons-codec:1.14'
 
-    //'com.github.javiersantos:AppUpdater:2.7'
+    implementation 'com.github.elliot619:AppUpdater:1.0.1'
+
 
 }

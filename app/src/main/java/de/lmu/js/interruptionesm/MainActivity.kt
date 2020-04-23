@@ -29,12 +29,11 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.aware.Applications
 import com.aware.Aware
-import com.aware.Aware_Preferences
-import com.charmeryl.appupdater.AppUpdater
 
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.jakewharton.threetenabp.AndroidThreeTen
+import com.updater.eccm.appupdater.AppUpdater
 
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -404,11 +403,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         return appList
     }
     fun checkForUpdate() {
-        Log.d("Ö", "iin")
-        Log.d("Ö", "iin2")
-        AppUpdater(this)
-            .setUpdateUrl("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json")
-            .start();
+        AppUpdater(this).sendNetworkUpdateAppRequest("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json");
     }
 
 
