@@ -406,10 +406,11 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     fun checkForUpdate() {
         Log.d("Ö", "iin")
         Log.d("Ö", "iin2")
-        val updtr = AppUpdater(this)
+        AppUpdater(this)
             .setUpdateFrom(UpdateFrom.GITHUB)
             .setGitHubUserAndRepo("Proteozym", "InterruptionStudy")
             .start();
+
     }
 
 
