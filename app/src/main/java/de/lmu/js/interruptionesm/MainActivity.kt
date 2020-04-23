@@ -30,8 +30,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.aware.Applications
 import com.aware.Aware
 import com.aware.Aware_Preferences
-import com.github.javiersantos.appupdater.AppUpdater
-import com.github.javiersantos.appupdater.enums.UpdateFrom
+import com.charmeryl.appupdater.AppUpdater
+
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.jakewharton.threetenabp.AndroidThreeTen
@@ -407,10 +407,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         Log.d("Ö", "iin")
         Log.d("Ö", "iin2")
         AppUpdater(this)
-            .setUpdateFrom(UpdateFrom.JSON)
-            .setUpdateJSON("https://github.com/Proteozym/InterruptionStudy/blob/master/app/update-changelog.json")
+            .setUpdateUrl("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json")
             .start();
-
     }
 
 
