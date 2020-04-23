@@ -407,8 +407,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         Log.d("Ö", "iin")
         Log.d("Ö", "iin2")
         AppUpdater(this)
-            .setUpdateFrom(UpdateFrom.GITHUB)
-            .setGitHubUserAndRepo("Proteozym", "InterruptionStudy")
+            .setUpdateFrom(UpdateFrom.JSON)
+            .setUpdateJSON("https://raw.githubusercontent.com/Proteozym/InterruptionStudy/tree/master/app/update-changelog.json")
             .start();
 
     }
