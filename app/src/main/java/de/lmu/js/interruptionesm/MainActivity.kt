@@ -406,8 +406,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     }
     fun checkForUpdate() {
              AppUpdater(this)
-            .setUpdateFrom(UpdateFrom.JSON)
-            .setUpdateJSON("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json")
+            .setUpdateFrom(UpdateFrom.GITHUB)
+             .setGitHubUserAndRepo("Proteozym", "InterruptionStudy")
             .start();
     }
 
