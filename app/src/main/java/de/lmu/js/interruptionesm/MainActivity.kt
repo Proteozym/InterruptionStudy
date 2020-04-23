@@ -408,7 +408,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         Log.d("Ö", "iin2")
         AppUpdater(this)
             .setUpdateFrom(UpdateFrom.JSON)
-            .setUpdateJSON("https://raw.githubusercontent.com/Proteozym/InterruptionStudy/tree/master/app/update-changelog.json")
+            .setUpdateJSON("https://github.com/Proteozym/InterruptionStudy/blob/master/app/update-changelog.json")
             .start();
 
     }
