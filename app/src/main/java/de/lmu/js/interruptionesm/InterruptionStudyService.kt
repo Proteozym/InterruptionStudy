@@ -172,7 +172,7 @@ class InterruptionStudyService : AccessibilityService() {
         Log.d("Ö", "iin2")
         AppUpdater(this)
             .setUpdateFrom(UpdateFrom.JSON)
-            .setUpdateJSON("https://raw.githubusercontent.com/Proteozym/InterruptionStudy/tree/master/app/update-changelog.json")
+            .setUpdateJSON("https://gitcdn.link/repo/Proteozym/InterruptionStudy/master/app/update-changelog.json")
             .start();
     }
 
