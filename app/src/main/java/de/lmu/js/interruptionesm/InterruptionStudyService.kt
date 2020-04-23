@@ -22,6 +22,8 @@ import com.aware.ESM
 import com.aware.Screen
 import com.aware.ui.esms.ESMFactory
 import com.aware.ui.esms.ESM_Radio
+import com.github.javiersantos.appupdater.AppUpdater
+import com.github.javiersantos.appupdater.enums.UpdateFrom
 import com.google.android.gms.location.DetectedActivity
 import com.google.firebase.Timestamp.now
 import com.jakewharton.threetenabp.AndroidThreeTen
@@ -161,6 +163,13 @@ class InterruptionStudyService : AccessibilityService() {
                 Log.e(TAG, "Error in notification " + e.message)
             }
         }
+    }
+
+    fun checkForUpdate() {
+        val updtr = AppUpdater(this)
+            .setUpdateFrom(UpdateFrom.GITHUB)
+            .setGitHubUserAndRepo("Proteozym", "InterruptionStudy")
+            .start();
     }
 
     fun trackScreen() {
@@ -531,7 +540,9 @@ class InterruptionStudyService : AccessibilityService() {
 
     fun generateESM() {
         if (sessionStart == null) return
-        if (sessionStart.seconds - Timestamp.now().seconds < 30 ) return
+        Log.d("ÖÖ", Timestamp.now().seconds.toString() + "-" + sessionStart.seconds.toString())
+        if ((Timestamp.now().seconds - sessionStart.seconds)  < 120 ) return
+        Log.d("ÖÖ", "IIIn")
         try {
             var factory = ESMFactory();
             var questionCounter = 0

@@ -82,4 +82,6 @@ dependencies {
 
     implementation 'commons-codec:commons-codec:1.14'
 
+    implementation 'com.github.javiersantos:AppUpdater:2.7'
+
 }
