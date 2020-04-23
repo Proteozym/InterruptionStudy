@@ -30,6 +30,8 @@ import androidx.recyclerview.widget.RecyclerView
 import com.aware.Applications
 import com.aware.Aware
 import com.aware.Aware_Preferences
+import com.github.javiersantos.appupdater.AppUpdater
+import com.github.javiersantos.appupdater.enums.UpdateFrom
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.jakewharton.threetenabp.AndroidThreeTen
@@ -297,9 +299,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             startService(mServiceIntent)
         }
 
+        checkForUpdate()
 
     }
-
     private fun isMyServiceRunning(serviceClass: Class<*>): Boolean {
         val manager: ActivityManager =
             getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
@@ -401,7 +403,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
         return appList
     }
-
+    fun checkForUpdate() {
+        Log.d("Ö", "iin")
+        Log.d("Ö", "iin2")
+        val updtr = AppUpdater(this)
+            .setUpdateFrom(UpdateFrom.GITHUB)
+            .setGitHubUserAndRepo("Proteozym", "InterruptionStudy")
+            .start();
+    }
 
 
 

@@ -105,6 +105,7 @@ class InterruptionStudyService : AccessibilityService() {
         regESM()
         trackScreen()
         readSystemDefaultApps()
+        checkForUpdate()
         val intent = Intent(Intent.ACTION_MAIN)
         intent.addCategory(Intent.CATEGORY_HOME)
         val resolveInfo: ResolveInfo =
@@ -159,6 +160,7 @@ class InterruptionStudyService : AccessibilityService() {
                 regESM()
                 trackScreen()
                 readSystemDefaultApps()
+                checkForUpdate()
             } catch (e: Exception) {
                 Log.e(TAG, "Error in notification " + e.message)
             }
