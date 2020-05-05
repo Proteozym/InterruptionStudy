@@ -42,8 +42,8 @@ class ESMReceiver: BroadcastReceiver() {
                 if (pending_esms != null && pending_esms.moveToFirst()) {
                     Log.d("ESMA", pending_esms.getString(7))
                    // Log.d("ESMA", SessionState.esmCounter.toString())
-                    var count = SessionUtil.checkESMCount(context)
-                    pending_esms.moveToPosition(pending_esms.count - count - 1)
+
+                    pending_esms.moveToPosition(0)//pending_esms.count - count - 1)
                     val esmAnswerObj = JSONObject()
                     var i = 1
                     var gson = Gson()

@@ -21,7 +21,7 @@ class TrackerWakelock : Service() {
         override fun run() {
             handler.postDelayed(
                 this,
-                100 * 1000 - SystemClock.elapsedRealtime() % 1000
+                40 * 1000 - SystemClock.elapsedRealtime() % 1000
             )
 
         }
@@ -34,7 +34,7 @@ class TrackerWakelock : Service() {
                     sendBroadcast(Intent("SESSION_TIMED_OUT"))
                     Log.d("WakeLock", "IN")
                 },
-            100 * 1000 - SystemClock.elapsedRealtime() % 1000
+            40 * 1000 - SystemClock.elapsedRealtime() % 1000
         )
         return START_STICKY
     }

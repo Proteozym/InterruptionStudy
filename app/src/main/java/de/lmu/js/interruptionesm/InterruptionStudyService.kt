@@ -20,6 +20,7 @@ import android.view.accessibility.AccessibilityEvent
 import android.view.inputmethod.InputMethodManager
 import com.aware.ESM
 import com.aware.Screen
+import com.aware.ui.ESM_Queue
 import com.aware.ui.esms.ESMFactory
 import com.aware.ui.esms.ESM_Radio
 import com.github.javiersantos.appupdater.AppUpdater
@@ -37,6 +38,11 @@ import org.json.JSONException
 import org.threeten.bp.LocalDateTime
 import org.threeten.bp.LocalTime
 import com.google.firebase.Timestamp
+
+import de.lmu.js.interruptionesm.SessionState.Companion.screenLock
+import de.lmu.js.interruptionesm.SessionState.Companion.sessionId
+import de.lmu.js.interruptionesm.utilities.SessionUtil.Companion.checkPermSurvey
+import de.lmu.js.interruptionesm.utilities.SessionUtil.Companion.checkSurveyFin
 import java.util.*
 
 class InterruptionStudyService : AccessibilityService() {
@@ -52,11 +58,14 @@ class InterruptionStudyService : AccessibilityService() {
     var appSwitchList = mutableListOf<String>()
     val blockedAppList = mutableListOf<String>("com.jb.emoji.gokeyboard", "com.google.android.inputmethod.latin", "com.google.android.", "com.sec.android.inputmethod", "com.android.systemui", "com.touchtype.swiftkey", "com.google.android.inputmethod.latin", "com.syntellia.fleksy.keyboard", "com.gamelounge.chroomakeyboard", "com.gingersoftware.android.keyboard", "com.boloorian.android.farsikeyboard", "com.jb.gokeyboard")
     private var lastApp = ""
-
+    var permissionToTrack = false
+    var surveyFin = false
     protected val NOTIFICATION_ID = 1337
 
     var mCurrentService: InterruptionStudyService? = null
     var counter = 0
+    var factory: ESMFactory = ESMFactory()
+    var packToTrack = ""
 
     /*@Nullable
     override fun onBind(intent: Intent?): IBinder? {
@@ -97,14 +106,15 @@ class InterruptionStudyService : AccessibilityService() {
             restartForeground()
         }
         //startTimer();
-
+        permissionToTrack = checkPermSurvey(userKey, this)
+        surveyFin = checkSurveyFin(userKey, this)
         regActivity()
         regCom()
         regSess()
         regESM()
         trackScreen()
         readSystemDefaultApps()
-        checkForUpdate()
+        //checkForUpdate()
         val intent = Intent(Intent.ACTION_MAIN)
         intent.addCategory(Intent.CATEGORY_HOME)
         val resolveInfo: ResolveInfo =
@@ -115,6 +125,7 @@ class InterruptionStudyService : AccessibilityService() {
         return START_STICKY;
         //return super.onStartCommand(intent, flags, startId)
     }
+
 
     @SuppressLint("ServiceCast")
     private fun readSystemDefaultApps() {
@@ -154,12 +165,14 @@ class InterruptionStudyService : AccessibilityService() {
                     )
                 )
                 Log.i(TAG, "restarting foreground successful")
-                //startTimer()
+
+                permissionToTrack = checkPermSurvey(userKey, this)
+                surveyFin = checkSurveyFin(userKey, this)
                 SessionUtil.checkSessionId(this)
                 regESM()
                 trackScreen()
                 readSystemDefaultApps()
-                checkForUpdate()
+                //checkForUpdate()
             } catch (e: Exception) {
                 Log.e(TAG, "Error in notification " + e.message)
             }
@@ -177,18 +190,22 @@ class InterruptionStudyService : AccessibilityService() {
     fun trackScreen() {
         Screen.setSensorObserver(object : Screen.AWARESensorObserver {
             override fun onScreenLocked() {
+                if (!permissionToTrack || surveyFin) return
                 handleScreenInterruption("lock")
             }
 
             override fun onScreenOff() {
+                if (!permissionToTrack || surveyFin) return
                 handleScreenInterruption("off")
             }
 
             override fun onScreenOn() {
+                if (!permissionToTrack || surveyFin) return
                 Log.d("Ö", "Screen ON")
             }
 
             override fun onScreenUnlocked() {
+                if (!permissionToTrack || surveyFin) return
                 handleScreenInterruption("on")
 
             }
@@ -197,6 +214,8 @@ class InterruptionStudyService : AccessibilityService() {
 
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
+        if(!permissionToTrack) permissionToTrack = checkPermSurvey(userKey, this)
+        if (!permissionToTrack || surveyFin) return
         Log.d("Ö", event.toString())
         if (userKey.isNullOrEmpty()) {
             try {
@@ -229,7 +248,7 @@ class InterruptionStudyService : AccessibilityService() {
                 //get selected app to track
                 val sharedPref = getSharedPreferences(getString(de.lmu.js.interruptionesm.R.string.preference_key), Context.MODE_PRIVATE)
                 Log.d("LÖL", sharedPref.getString("APP", "empty")!!.split("|")[0])
-                val packToTrack = sharedPref.getString("APP", "empty")!!.split("|")[0]
+                packToTrack = sharedPref.getString("APP", "empty")!!.split("|")[0]
                 if (packToTrack.equals("empty")) {
                     Log.e("Interruption ESM", "App to track selection not working!")
                 }
@@ -307,9 +326,11 @@ class InterruptionStudyService : AccessibilityService() {
                     return
                 }
                 if (trigger == "lock") {
+                    screenLock = true
                     startInterruption(eventValue.SCREEN_LOCK)
                 }
                 else {
+                    screenLock = true
                     startInterruption(eventValue.SCREEN_OFF)
                 }
 
@@ -512,7 +533,7 @@ class InterruptionStudyService : AccessibilityService() {
         if(comReceiver == null) regCom()
         registerReceiver(comReceiver, communicationFilter)
 
-        DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey)
+        DatabaseRef.pushDB(eventType.SESSION_START, eventValue.NONE, userKey, mapOf("app" to packToTrack))
         //startService(Intent(this, AppTrackerService::class.java))
 
     }
@@ -524,6 +545,7 @@ class InterruptionStudyService : AccessibilityService() {
         generateESM()
 
         //Reset Session
+        SessionState.screenLock = false
         SessionState.sessionStopped = true
         SessionState.interruptState = false;
         SessionState.mvmntModalityRecord = mutableListOf()
@@ -542,35 +564,69 @@ class InterruptionStudyService : AccessibilityService() {
 
     fun generateESM() {
         if (sessionStart == null) return
-        Log.d("ÖÖ", Timestamp.now().seconds.toString() + "-" + sessionStart.seconds.toString())
-        if ((Timestamp.now().seconds - sessionStart.seconds)  < 120 ) return
-        Log.d("ÖÖ", "IIIn")
+
+        if ((Timestamp.now().seconds - sessionStart.seconds)  < 30 ) return
+        val prefFile = getString(de.lmu.js.interruptionesm.R.string.preference_key)
+        val sharedPref = this.getSharedPreferences(
+            prefFile, Context.MODE_PRIVATE)
         try {
-            var factory = ESMFactory();
-            var questionCounter = 0
+            try {
+                var esmQueueLeng = sharedPref.getInt("esmCounter", 0)
+                for (i in 0 until esmQueueLeng) {
+                    factory.removeESM(i)
+                }
+            } catch (e: Exception) {Log.e("Ö ESM Queue Remove", e.toString())}
+            factory = ESMFactory();
+
             for (mov in mvmntModalityRecord) {
                 Log.d("Ö ESM", "movement conf: " + mov.confidence + "movement type: " + mov.movement)
                 if (mov.confidence >= 90 && (mov.movement != MovementRecord.Movement.NONE)) {
 
                     var movAnswer = ESM_Radio()
+                    movAnswer.notificationTimeout = 10800
                     movAnswer.addRadio("Yes")
                         .addRadio("No")
                         .setInstructions("During your latest learning session, we detected the following activity performed by you:" + mov.movement.name +"\n Is that correct?")
                         .setSubmitButton("OK");
                     factory.addESM(movAnswer)
-
-                    questionCounter++
                 }
             }
             Log.d("Ö", "In")
             //ToDo Based on number of question issued in last ESM - need to retrieve Last Index - N -> Last Index
 
-            val prefFile = getString(de.lmu.js.interruptionesm.R.string.preference_key)
-            val sharedPref = this.getSharedPreferences(
-                prefFile, Context.MODE_PRIVATE)
+
             val editor = sharedPref.edit();
 
-            editor.putInt("esmCounter", 2 + questionCounter)
+            var cond = ESM_Radio();
+            cond.notificationTimeout = 10800
+            cond.trigger = sessionId.toString()
+            cond
+                .addRadio("Very important- it was urgent / time-critical")
+                .addRadio("Moderate - I had to do it eventually in the near future")
+                .addRadio("Not important - I could have ignored it and continued learning")
+                .setInstructions("Why did you interrupt your learning session?")
+                .setSubmitButton("How important was it that you follow up upon the interruption?")
+
+            //if (screenLock) {
+                var screenRadio = ESM_Radio();
+                screenRadio.notificationTimeout = 10800
+                screenRadio.trigger = sessionId.toString()
+                screenRadio.addRadio("I was done using the app.")
+                    .addRadio("I was interrupted by something on my phone (e.g. a notification, call, sms, email etc.)")
+                    .addRadio("I was distracted by something external to myself or the phone (e.g. doorbell, other people, having to get off of train etc.)")
+                    .addRadio("I was distracted internally (e.g. tiredness, couldn't concentrate, thinking of something else, mind-wandering etc.)")
+                    .setInstructions("Why did you interrupt your learning session?")
+                    .setSubmitButton("OK")
+                    .addFlow("I was interrupted by something on my phone (e.g. a notification, call, sms, email etc.)", cond.build())
+                    .addFlow("I was distracted by something external to myself or the phone (e.g. doorbell, other people, having to get off of train etc.)", cond.build())
+                    .addFlow("I was distracted internally (e.g. tiredness, couldn't concentrate, thinking of something else, mind-wandering etc.)", cond.build())
+
+                factory.addESM(screenRadio);
+                var questionNmbr = factory.queue.length()
+
+            //}
+
+            editor.putInt("esmCounter", questionNmbr)
 
             editor.apply();
 
@@ -578,16 +634,29 @@ class InterruptionStudyService : AccessibilityService() {
 
             //SessionState.esmCounter = 2 + questionCounter
 
+            var notificationRadio = ESM_Radio();
+            notificationRadio.notificationTimeout = 10800
+            notificationRadio.addRadio("Yes")
+                .addRadio("No")
+                .setInstructions("Did you receive any distracting notifications during you latest sessions?")
+                .setSubmitButton("OK");
+            factory.addESM(notificationRadio);
 
             var socialRadio = ESM_Radio();
-            socialRadio.addRadio("Yes")
-                .addRadio("No")
-                .setInstructions("Were you alone during your latest session?")
+            socialRadio.notificationTimeout = 10800
+            socialRadio
+                .addRadio("Alone.")
+                .addRadio("With one person.")
+                .addRadio("Wit more than one person.")
+                .setInstructions("Were you alone or in company during your latest session?")
                 .setSubmitButton("OK");
             factory.addESM(socialRadio);
 
+
             var locationRadio = ESM_Radio();
-            locationRadio.addRadio("Work")
+            locationRadio.notificationTimeout = 10800
+            locationRadio
+                .addRadio("Work")
                 .addRadio("Home")
                 .addRadio("Commute")
                 .addRadio("Traveling")
@@ -669,52 +738,18 @@ Log.d("Ö this", addProp.toString())
         }
     }
     private fun regESM() {
-        if (esmReceiver != null) {
+        //if (esmReceiver != null) {
             var esmFilter = IntentFilter();
             esmFilter.addAction(ESM.ACTION_AWARE_ESM_QUEUE_COMPLETE)
             esmFilter.addAction(ESM.ACTION_AWARE_ESM_DISMISSED)
             esmFilter.addAction(ESM.ACTION_AWARE_ESM_EXPIRED)
             esmReceiver = ESMReceiver()
             registerReceiver(esmReceiver, esmFilter)
-        }
+        //}
     }
 
 
-    private var timer: Timer? = null
-    private var timerTask: TimerTask? = null
-    var oldTime: Long = 0
-    fun startTimer() {
-        //set a new Timer
-        timer = Timer()
 
-        //initialize the TimerTask's job
-        initializeTimerTask()
-
-        //schedule the timer, to wake up every 1 second
-        timer!!.schedule(timerTask, 1000, 1000) //
-    }
-
-    /**
-     * it sets the timer to print the counter every x seconds
-     */
-    fun initializeTimerTask() {
-        timerTask = object : TimerTask() {
-            override fun run() {
-                Log.i("in timer", "in timer ++++  " + counter++)
-            }
-        }
-    }
-
-    /**
-     * not needed
-     */
-    fun stoptimertask() {
-        //stop the timer, if it's not already null
-        if (timer != null) {
-            timer!!.cancel()
-            timer = null
-        }
-    }
 
     fun getmCurrentService(): InterruptionStudyService? {
         return mCurrentService

@@ -14,10 +14,7 @@ import android.provider.Settings
 import android.util.Log
 import android.view.MenuItem
 import android.view.View
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.Spinner
-import android.widget.Toast
+import android.widget.*
 import androidx.appcompat.app.ActionBarDrawerToggle
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -31,11 +28,15 @@ import com.aware.Applications
 import com.aware.Aware
 import com.github.javiersantos.appupdater.AppUpdater
 import com.github.javiersantos.appupdater.enums.UpdateFrom
-
 import com.google.android.material.navigation.NavigationView
 import com.google.firebase.auth.FirebaseAuth
 import com.jakewharton.threetenabp.AndroidThreeTen
-
+import de.lmu.js.interruptionesm.utilities.Encrypt.Companion.encryptKey
+import de.lmu.js.interruptionesm.utilities.SessionUtil
+import de.lmu.js.interruptionesm.utilities.SessionUtil.Companion.checkKey
+import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.concurrent.schedule
 
 
 class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelectedListener {
@@ -57,10 +58,14 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
     lateinit var sharedPref: SharedPreferences
     lateinit var editor: SharedPreferences.Editor
     var checkSpinnerInit = 0
+    var userKey: String = ""
 
     var mServiceIntent: Intent? = null
     private var mSensorService: InterruptionStudyService? = null
     var ctx: Context? = null
+
+    var permissionToTrack = false
+    var surveyFin = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -76,6 +81,10 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         sharedPref = this.getSharedPreferences(
             prefFile, Context.MODE_PRIVATE)
         editor = sharedPref.edit();
+
+        try {
+            userKey = encryptKey(Settings.Secure.getString(this.contentResolver, Settings.Secure.ANDROID_ID))
+        } catch (e: java.lang.Exception) {Log.e("Ö", "Error Encrypting")}
 
 
         // Initialize Firebase Auth
@@ -300,7 +309,92 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
             startService(mServiceIntent)
         }
 
-        checkForUpdate()
+        //checkForUpdate()
+
+        permissionToTrack = SessionUtil.checkPermSurvey(userKey, this)
+        surveyFin = SessionUtil.checkSurveyFin(userKey, this)
+        var submitForm = findViewById<View>(R.id.submitKeyForm) as LinearLayout
+        var submitButton = findViewById<View>(R.id.submitKey) as Button
+        var submitText = findViewById<View>(R.id.submitText) as TextView
+        var defText = findViewById<View>(R.id.survDefault) as TextView
+        var initSurveyButton = findViewById<View>(R.id.initSurvey) as Button
+        var finSurveyButton = findViewById<View>(R.id.finSurvey) as Button
+
+        submitButton.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                //Check Key
+                var keyVal = checkKey(submitText.text.toString(), userKey, this@MainActivity)
+
+
+                if (keyVal) {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Key valid, survey has started!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    submitForm.setVisibility(View.GONE)
+                    submitButton.setVisibility(View.GONE)
+                    submitText.setVisibility(View.GONE)
+                    defText.setVisibility(View.VISIBLE)
+                    initSurveyButton.setVisibility(View.GONE)
+                    finSurveyButton.setVisibility(View.GONE)
+
+                } else {
+                    Toast.makeText(
+                        this@MainActivity,
+                        "Key invalid, please try again!",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+                submitText.text = ""
+                keyVal = false
+                //initSurveyButton.setVisibility(View.GONE)
+                //stopButton.setVisibility(View.VISIBLE)
+            }
+        })
+
+        if (!permissionToTrack) {
+            defText.setVisibility(View.GONE)
+
+
+            initSurveyButton.setVisibility(View.VISIBLE)
+            submitForm.setVisibility(View.VISIBLE)
+            submitButton.setVisibility(View.VISIBLE)
+            submitText.setVisibility(View.VISIBLE)
+            initSurveyButton.setOnClickListener(object : View.OnClickListener {
+                override fun onClick(v: View?) {
+
+                    //Open survey with key
+                    val openURL = Intent(android.content.Intent.ACTION_VIEW)
+                    openURL.data = Uri.parse("https://www.soscisurvey.de/interruptionstudy/?q=qnr1&key=".plus(userKey))
+                    startActivity(openURL)
+                    //initSurveyButton.setVisibility(View.GONE)
+                    //stopButton.setVisibility(View.VISIBLE)
+                }
+            })
+
+        }
+        else if (surveyFin) {
+            defText.setVisibility(View.GONE)
+
+            finSurveyButton.setVisibility(View.VISIBLE)
+            submitForm.setVisibility(View.VISIBLE)
+            submitButton.setVisibility(View.VISIBLE)
+            submitText.setVisibility(View.VISIBLE)
+            finSurveyButton.setOnClickListener(object : View.OnClickListener {
+                override fun onClick(v: View?) {
+                    val openURL = Intent(android.content.Intent.ACTION_VIEW)
+                    openURL.data = Uri.parse("https://www.soscisurvey.de/interruptionstudy/?q=qnr2&key=".plus(userKey))
+                    startActivity(openURL)
+                    //Open survey with key
+                    //finSurveyButton.setVisibility(View.GONE)
+                    //stopButton.setVisibility(View.VISIBLE)
+                }
+            })
+        }
+        else {
+            defText.setVisibility(View.VISIBLE)
+        }
 
     }
     private fun isMyServiceRunning(serviceClass: Class<*>): Boolean {
@@ -373,6 +467,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         accessibilityRequestReceiverFilter.addAction("TRIGGER_ACCESSIBILITY")
         accessibilityRequestReceiverFilter.addAction("TRIGGER_PERMISSION")
         registerReceiver(accessibilityRequestReceiver, accessibilityRequestReceiverFilter)
+        permissionToTrack = SessionUtil.checkPermSurvey(userKey, this)
+        surveyFin = SessionUtil.checkSurveyFin(userKey, this)
     }
 
     override fun onPause() {

@@ -31,6 +31,74 @@
         </androidx.appcompat.widget.Toolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
+    <TextView
+        android:id="@+id/listlabel2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:layout_marginBottom="12dp"
+        android:text="Survey:"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/survDefault"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:text="No current survey."
+        android:textStyle="italic"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/initSurvey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:text="Open Initial Survey"
+        android:visibility="gone" />
+
+    <Button
+        android:id="@+id/finSurvey"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginLeft="10dp"
+        android:layout_marginRight="10dp"
+        android:text="Open Final Survey"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:id="@+id/submitKeyForm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="15px"
+        android:orientation="horizontal"
+        android:visibility="invisible">
+
+        <EditText
+            android:id="@+id/submitText"
+            android:layout_width="202dp"
+            android:layout_height="wrap_content"
+            android:layout_marginLeft="10dp"
+            android:layout_marginTop="10dp"
+            android:layout_marginRight="10dp"
+            android:layout_weight="1"
+            android:ems="10"
+            android:hint="Survey key"
+            android:inputType="textPersonName"
+            android:text=""
+            android:visibility="gone" />
+
+        <Button
+            android:id="@+id/submitKey"
+            android:layout_width="117dp"
+            android:layout_height="wrap_content"
+            android:layout_marginRight="10dp"
+            android:layout_weight="0"
+            android:text="Send"
+            android:visibility="gone" />
+    </LinearLayout>
 
     <TextView
         android:id="@+id/spinnerlabel"
@@ -69,20 +137,8 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/permission_list"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
+        android:layout_height="327dp"
         android:layout_marginLeft="10dp" />
-
-    <ImageView
-        android:id="@+id/imageView1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentRight="true"
-        android:layout_marginBottom="12dp"
-        android:layout_marginRight="12dp"
-        android:elevation="2dp"
-        android:src="@android:drawable/ic_menu_add" />
-
 
 
 </LinearLayout>

@@ -19,3 +19,4 @@ enum class eventValue {
     WALKING, RUNNING, STILL, IN_VEHICLE, BICYCLE,
     NONE, SMS, CALL, PUSH
 }
+

@@ -26,6 +26,7 @@ class SessionState : Application() {
         lateinit var notificationRecord: MutableList<Map<String, String>>
         var esmCounter: Int = 0
         var esmWasDismissed: Boolean = false
+        var screenLock: Boolean = false
 
     }
 

@@ -42,7 +42,7 @@ class Notification {
             val name: CharSequence = "Permanent Notification"
             //mContext.getString(R.string.channel_name);
             val importance = NotificationManager.IMPORTANCE_LOW
-            val CHANNEL_ID = "uk.ac.shef.oak.channel"
+            val CHANNEL_ID = "lmu.channel"
             val channel = NotificationChannel(CHANNEL_ID, name, importance)
             //String description = mContext.getString(R.string.notifications_description);
             val description =
