@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import de.lmu.js.interruptionesm.DatabaseRef
 import de.lmu.js.interruptionesm.DatabaseRef.addUserToSurvey
 import de.lmu.js.interruptionesm.DatabaseRef.confirmUserSurveyFin
+import de.lmu.js.interruptionesm.DatabaseRef.confirmUserSurveyStart
 import de.lmu.js.interruptionesm.DatabaseRef.verifyFinFromDB
 import de.lmu.js.interruptionesm.DatabaseRef.verifyStartFromDB
 import de.lmu.js.interruptionesm.SessionState
@@ -39,7 +40,8 @@ class SessionUtil {
             //First check shared pref
             val sharedPrefs = context!!.getSharedPreferences("interruption_esm_pref", 0)
             permissionToTrack = sharedPrefs.getBoolean("PERM", false)
-            verifyStartFromDB(userKey, cont)
+
+
             return permissionToTrack
         }
 
@@ -61,7 +63,7 @@ class SessionUtil {
             val sharedPrefs = context!!.getSharedPreferences("interruption_esm_pref", 0)
             surveyFin = sharedPrefs.getBoolean("FINREADY", false)
 
-            verifyFinFromDB(userKey, cont)
+
             return surveyFin
         }
 
@@ -79,7 +81,7 @@ class SessionUtil {
         fun checkKey(text: String, userKey: String, cont: Context): Boolean {
             if (text.toLowerCase().equals("startlmu20")) {
                 setPermSurvey(cont)
-                addUserToSurvey(userKey)
+                confirmUserSurveyStart(userKey)
                 return true
             }
             if (text.toLowerCase().equals("lmu20fin")) {

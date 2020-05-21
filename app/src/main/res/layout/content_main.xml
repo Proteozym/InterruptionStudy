@@ -106,7 +106,7 @@
         android:layout_height="wrap_content"
         android:layout_marginLeft="10dp"
         android:layout_marginTop="12dp"
-        android:text="Select Application:"
+        android:text="Select Learning Application:"
         android:textSize="18sp"
         android:textStyle="bold" />
     <Spinner
@@ -137,8 +137,9 @@
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/permission_list"
         android:layout_width="match_parent"
-        android:layout_height="327dp"
-        android:layout_marginLeft="10dp" />
+        android:layout_height="380dp"
+        android:layout_marginLeft="10dp"
+        android:scrollbarAlwaysDrawVerticalTrack="true" />
 
 
 </LinearLayout>

@@ -1,6 +1,7 @@
 package de.lmu.js.interruptionesm
 
 import android.app.*
+import android.app.PendingIntent.FLAG_CANCEL_CURRENT
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -50,13 +51,27 @@ object DatabaseRef {
         })
     }
 
-    fun addUserToSurvey(key: String) {
-        userSurveyReg.document(key).set(object{
-            val userKey: String = key
-            val hasCompletedInitSurvey:Boolean = true
-            val hasCompletedFinSurvey:Boolean = false
-            val timestamp: Timestamp = Timestamp.now()
-        })
+    fun addUserToSurvey(key: String, cont: Context) {
+        val sharedPrefs = cont.getSharedPreferences("interruption_esm_pref", 0)
+        if (!sharedPrefs.getBoolean("ENTRY", false)) {
+            userSurveyReg.document(key).set(object {
+                val userKey: String = key
+                val hasCompletedInitSurvey: Boolean = false
+                val hasCompletedFinSurvey: Boolean = false
+                val timestamp: Timestamp = Timestamp.now()
+            }).addOnSuccessListener {
+
+                val editor = sharedPrefs.edit()
+                editor.putBoolean("ENTRY", true)
+                editor.apply();
+                var succ = editor.commit();
+            }
+        }
+    }
+
+
+    fun confirmUserSurveyStart(key: String) {
+        userSurveyReg.document(key).update("hasCompletedInitSurvey", true)
     }
 
     fun confirmUserSurveyFin(key: String) {
@@ -65,6 +80,8 @@ object DatabaseRef {
 
 
     fun verifyStartFromDB(key: String, context: Context) {
+        val sharedPrefs = context.getSharedPreferences("interruption_esm_pref", 0)
+        if (!sharedPrefs.getBoolean("ENTRY", false)) return
         val docRef = userSurveyReg.document(key)
         docRef.get()
             .addOnCompleteListener { document ->
@@ -89,6 +106,7 @@ object DatabaseRef {
     }
 
     fun verifyFinFromDB(key: String, context: Context) {
+        if(!checkPermSurvey(key, context)) return
         val docRef = userSurveyReg.document(key)
 
         //TIME CHECK
@@ -104,8 +122,8 @@ object DatabaseRef {
                 }
                 else {
                     var startTmp: Timestamp = document.result?.get("timestamp") as Timestamp
-
-                    if ((Timestamp.now().seconds - startTmp.seconds) >= 1000 && checkPermSurvey(key, context)) {
+                    //2419200 = 4 Weeks
+                    if ((Timestamp.now().seconds - startTmp.seconds) >= 2419200 && checkPermSurvey(key, context)) {
                         editor.putBoolean("FINREADY", true)
                         editor.putBoolean("FIN", false)
                         sendFinSurveyNotification(context)
@@ -130,12 +148,13 @@ object DatabaseRef {
         val intent = Intent(cont, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
+
         val pendingIntent: PendingIntent = PendingIntent.getActivity(cont, 0, intent, 0)
 
         val builder = NotificationCompat.Builder(cont, "lmu.channel2")
             .setSmallIcon(R.drawable.ic_assignment_black_24dp)
             .setContentTitle("LMU Study: Survey")
-            .setContentText("Your final survey is available. Please complete it, to finish the study.")
+            .setContentText("Your final survey is available. Please complete it, to finish the study. You might need to restart the Activity Recognition App!")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             // Set the intent that will fire when the user taps the notification
             .setContentIntent(pendingIntent)

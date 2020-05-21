@@ -120,6 +120,9 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
                     // Sign in success, update UI with the signed-in user's information
                     Log.d("Ö", "signInAnonymously:success")
                     val user = auth.currentUser
+
+                    DatabaseRef.addUserToSurvey(userKey, this)
+
                     //updateUI(user)
                 } else {
                     // If sign in fails, display a message to the user.
@@ -131,13 +134,28 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
                 // ...
             }
-
+        permissionToTrack = SessionUtil.checkPermSurvey(userKey, this)
+        surveyFin = SessionUtil.checkSurveyFin(userKey, this)
         val toggle = ActionBarDrawerToggle(
             this, drawerLayout, toolbar, 0, 0
         )
         drawerLayout.addDrawerListener(toggle)
         toggle.syncState()
         navView.setNavigationItemSelectedListener(this)
+
+        val usrTextView: TextView = navView.getHeaderView(0).findViewById(R.id.usrKey)
+        val copyKey: ImageButton = navView.getHeaderView(0).findViewById(R.id.usrKeyBtn)
+
+        usrTextView.text = userKey
+
+        copyKey.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                var clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                var clip = ClipData.newPlainText("Key", usrTextView.text)
+                clipboard.setPrimaryClip(clip)
+            }
+
+        })
 
         if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_PHONE_STATE)!= PackageManager.PERMISSION_GRANTED) {
             Log.d("Ö", "Phone State---------")
@@ -256,6 +274,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         }
 
         var appData = installedApps()
+
         val spinner: Spinner = findViewById(R.id.app_spinner)
 
         val positionAdapter = ArrayAdapter<AppItem<String>>(this, android.R.layout.simple_spinner_item, appData).also { adapter ->
@@ -271,6 +290,7 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
         spinner.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onNothingSelected(parent: AdapterView<*>?) {
+
             }
             override fun onItemSelected(parent: AdapterView<*>, view: View?, position: Int, id: Long) {
                 // val item = parent.getItemAtPosition(position) as EnumTextItem<Position>
@@ -289,30 +309,12 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         var dialog = BatteryOptimizationUtil.getBatteryOptimizationDialog(this);
         if (dialog != null) dialog.show();
 
-
-//OLD WAY
-        /*Intent(this, InterruptionStudyService::class.java).also {
-            it.action = Actions.START.name
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                Log.d("Ö", "Starting the service in >=26 Mode")
-                startForegroundService(it)
-                return
-            }
-            Log.d("Ö", "Starting the service in < 26 Mode")
-            startService(it)
-        }*/
-//OLD WAY
-
-        //mSensorService = InterruptionStudyService()
         mServiceIntent = Intent(this, InterruptionStudyService::class.java)
         if (!isMyServiceRunning(InterruptionStudyService::class.java)) {
             startService(mServiceIntent)
         }
 
-        //checkForUpdate()
 
-        permissionToTrack = SessionUtil.checkPermSurvey(userKey, this)
-        surveyFin = SessionUtil.checkSurveyFin(userKey, this)
         var submitForm = findViewById<View>(R.id.submitKeyForm) as LinearLayout
         var submitButton = findViewById<View>(R.id.submitKey) as Button
         var submitText = findViewById<View>(R.id.submitText) as TextView
@@ -469,6 +471,8 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
         registerReceiver(accessibilityRequestReceiver, accessibilityRequestReceiverFilter)
         permissionToTrack = SessionUtil.checkPermSurvey(userKey, this)
         surveyFin = SessionUtil.checkSurveyFin(userKey, this)
+
+
     }
 
     override fun onPause() {
@@ -488,14 +492,16 @@ class MainActivity : AppCompatActivity(), NavigationView.OnNavigationItemSelecte
 
     fun installedApps(): ArrayList<AppItem<String>> {
         val appList: ArrayList<AppItem<String>> = ArrayList()
+        appList.add(AppItem("", ""))
         val packList: List<PackageInfo> = packageManager.getInstalledPackages(0)
-        for (i in 0 until packList.size) {
-            val packInfo: PackageInfo = packList[i]
+        val sortedList = packList.sortedWith ( compareBy{(it.applicationInfo.loadLabel(packageManager).toString())  } )
+        for (i in 0 until sortedList.size) {
+            val packInfo: PackageInfo = sortedList[i]
             if ((packInfo.applicationInfo.flags and ApplicationInfo.FLAG_SYSTEM) == 0) {
                 val appName: String =
                     packInfo.applicationInfo.loadLabel(packageManager).toString()
                 appList.add(AppItem(packInfo.packageName, appName))
-                Log.d("Ö Nö" + Integer.toString(i), appName)
+
             }
         }
         return appList

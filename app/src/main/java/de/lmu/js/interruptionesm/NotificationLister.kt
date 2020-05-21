@@ -28,6 +28,7 @@ class NotificationLister: NotificationListenerService() {
             if (sbn?.packageName != isDoublicateNotificationPrevention) {
               isDoublicateNotificationPrevention = sbn!!.packageName
                 SessionUtil.checkSessionId(this)
+
                 DatabaseRef.pushDB(
                     eventType.NOTIFICATION,
                     eventValue.PUSH,

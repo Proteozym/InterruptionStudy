@@ -4,29 +4,64 @@
     android:layout_width="match_parent"
     android:layout_height="200dp"
     android:background="#009440"
-    android:gravity="bottom"
     android:orientation="vertical"
     android:paddingLeft="15dp"
+    android:paddingTop="20dp"
     android:paddingBottom="15dp">
-
-    <ImageView
-        android:id="@+id/imageView"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
-        android:layout_marginBottom="15dp"
-        app:srcCompat="@color/colorPrimaryDark" />
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:fontFamily="sans-serif-light"
+        android:text="Activity Recognition  App"
+        android:textColor="#000000"
+        android:textSize="18sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="5dp"
         android:text="Interruption Study"
         android:textColor="#FFFFFF"
         android:textStyle="bold" />
 
+    <RelativeLayout
+        android:layout_width="fill_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="35dp"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/usrKeyBtn"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:scaleType="fitCenter"
+            android:layout_gravity="fill_horizontal"
+            android:background="#00FFFFFF"
+            android:layout_marginLeft="65dp"
+            android:src="?attr/actionModeCopyDrawable"></androidx.appcompat.widget.AppCompatImageButton>
+
+        <TextView
+            android:id="@+id/usrKeyLBL"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+
+            android:layout_marginTop="3dp"
+            android:text="User Key:"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp" />
+    </RelativeLayout>
     <TextView
+        android:id="@+id/usrKey"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:gravity="fill_horizontal"
+        android:paddingRight="20dp"
         android:text=""
-        android:textColor="#FFFFFF" />
+        android:textColor="#FFFFFF"
+        android:textSize="8sp" />
+
 
 </LinearLayout>

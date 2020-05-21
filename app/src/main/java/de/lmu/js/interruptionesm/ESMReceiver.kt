@@ -24,7 +24,7 @@ class ESMReceiver: BroadcastReceiver() {
         if (intent?.action == ESM.ACTION_AWARE_ESM_ANSWERED) esmWasDismissed = false
         if (intent?.action == ESM.ACTION_AWARE_ESM_QUEUE_COMPLETE) {
             if (esmWasDismissed) {
-                DatabaseRef.pushDB(eventType.ESM_DISMISSED, eventValue.NONE, Settings.Secure.getString(context?.contentResolver, Settings.Secure.ANDROID_ID))
+                DatabaseRef.pushDB(eventType.ESM_DISMISSED, eventValue.NONE, Encrypt.encryptKey(Settings.Secure.getString(context?.contentResolver, Settings.Secure.ANDROID_ID)))
             }
             else {
                 Log.d("TTTin", "Queue")
